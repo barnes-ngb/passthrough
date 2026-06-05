@@ -88,6 +88,83 @@ def basis_matrix_1d(
     return N[:, :n_ctrl]
 
 
+def basis_derivatives_1d(
+    ts: np.ndarray, degree: int, knots: np.ndarray, n_ctrl: int, n_deriv: int
+) -> list[np.ndarray]:
+    """Basis functions and their parametric derivatives up to order n_deriv.
+
+    Returns a list [N0, N1, ..., N_{n_deriv}], each an (len(ts), n_ctrl) array.
+    N0 equals basis_matrix_1d (the values). N1 is the first derivative of each
+    basis function with respect to t, N2 the second, and so on.
+
+    This extends the Cox-de Boor basis validated in Phase 1. It is the same basis;
+    only the derivative recurrence is added here, so there is one validated basis
+    driving evaluation, fitting, and differentiation. The derivatives are
+    cross-checked against finite differences of rhino3dm's PointAt before being
+    relied on for curvature (see tests/test_constraints.py).
+
+    The derivative recurrence is the standard one:
+        d/dt N_{i,p}(t) = p * ( N_{i,p-1}(t) / (knots[i+p] - knots[i])
+                              - N_{i+1,p-1}(t) / (knots[i+p+1] - knots[i+1]) )
+    Applying it k times lowers the degree by k. Each requested basis function is
+    expanded into a linear combination of lower-degree basis values, which are
+    computed once and shared.
+    """
+    ts = np.clip(np.asarray(ts, dtype=float), 0.0, 1.0)
+    m = len(knots) - 1
+
+    # Degree-0 indicator, with the right endpoint t = 1 folded into the last
+    # non-degenerate span (basis index n_ctrl - 1), matching basis_matrix_1d.
+    N0 = np.zeros((ts.shape[0], m))
+    for i in range(m):
+        N0[:, i] = ((knots[i] <= ts) & (ts < knots[i + 1])).astype(float)
+    end = ts >= knots[-1]
+    N0[end, :] = 0.0
+    N0[end, n_ctrl - 1] = 1.0
+
+    # Basis values at every degree 0..degree, kept for the derivative expansion.
+    values_by_degree = {0: N0}
+    prev = N0
+    for p in range(1, degree + 1):
+        ncol = m - p
+        cur = np.zeros((ts.shape[0], ncol))
+        for i in range(ncol):
+            d1 = knots[i + p] - knots[i]
+            if d1 > 0:
+                cur[:, i] += (ts - knots[i]) / d1 * prev[:, i]
+            d2 = knots[i + p + 1] - knots[i + 1]
+            if d2 > 0:
+                cur[:, i] += (knots[i + p + 1] - ts) / d2 * prev[:, i + 1]
+        values_by_degree[p] = cur
+        prev = cur
+
+    def derivative(order: int) -> np.ndarray:
+        result = np.zeros((ts.shape[0], n_ctrl))
+        for i in range(n_ctrl):
+            # Expand the order-th derivative of basis i into a combination of
+            # degree (degree - order) basis values.
+            combo = {i: 1.0}
+            pp = degree
+            for _ in range(order):
+                nxt: dict[int, float] = {}
+                for idx, c in combo.items():
+                    a = knots[idx + pp] - knots[idx]
+                    if a > 0:
+                        nxt[idx] = nxt.get(idx, 0.0) + c * pp / a
+                    b = knots[idx + pp + 1] - knots[idx + 1]
+                    if b > 0:
+                        nxt[idx + 1] = nxt.get(idx + 1, 0.0) - c * pp / b
+                combo = nxt
+                pp -= 1
+            base = values_by_degree[pp]
+            for idx, c in combo.items():
+                if idx < base.shape[1]:
+                    result[:, i] += c * base[:, idx]
+        return result
+
+    return [derivative(k) for k in range(n_deriv + 1)]
+
+
 def tensor_basis_matrix(
     uv: np.ndarray,
     degree_u: int,
