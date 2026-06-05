@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+exchange/out/*.json
+exchange/in/*.json
