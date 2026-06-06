@@ -15,7 +15,7 @@ returned geometry, and reports the residual next to the declared tolerance with
 a pass/fail flag. No constraint tolerance is hardcoded in the checker.
 
 A residual is the degree of constraint violation. It is reported separately from
-the positional drift (the Hausdorff number in `metrics.py`). The two are not
+the positional drift (the Hausdorff number in `driftgauge.py`). The two are not
 folded together. Drift answers "did the shape move." A residual answers "did the
 declared property survive." They are different questions with different units.
 

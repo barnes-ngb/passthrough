@@ -80,7 +80,7 @@ UV, and the winding alone.
 
 ## The validity module
 
-`src/driftgauge/validity.py`, honesty category 1. It is instrument logic. The one
+`src/passthrough/validity.py`, honesty category 1. It is instrument logic. The one
 place a category 2 method would enter is the optional triangle-triangle
 narrow-phase refinement of the collision check, which uses a standard intersection
 test. That refinement is not required for the gate and is not built here.
@@ -91,7 +91,7 @@ check name, a pass/fail flag, the signal type on failure, the involved node IDs,
 the involved faces, and a `detail` map of secondary numbers.
 
 A validity result is kept semantically distinct from both the positional drift
-(`metrics.py`) and the constraint residuals (`constraints.py`). Drift answers "did
+(`driftgauge.py`) and the constraint residuals (`constraints.py`). Drift answers "did
 the shape move." A residual answers "did a declared property survive." A validity
 result answers "is the returned mesh physical at all." Three questions, three code
 paths, never folded together.
