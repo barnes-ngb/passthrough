@@ -42,7 +42,12 @@ from pathlib import Path
 
 import numpy as np
 
-from driftgauge.encode import mesh_filename, read_payload, write_payload
+from driftgauge.encode import (
+    mesh_filename,
+    read_payload,
+    read_topology,
+    write_payload,
+)
 from driftgauge.geometry import Mesh
 
 # --- the synthetic field --------------------------------------------------
@@ -130,6 +135,108 @@ def deform(mesh: Mesh, magnitude: float) -> Mesh:
     return Mesh(vertices=moved, faces=mesh.faces.copy(), uv=mesh.uv.copy())
 
 
+# --- Phase 4 morph modes: deterministic, known violations -----------------
+#
+# Three modes, each a known stimulus for one of the three validity signals
+# (specs/spec-04-identity-validity.md). None renames a vertex or rewires a face,
+# so identity is preserved by all three. The geometry is what each one breaks (or
+# keeps clean), so the validity gate reads exactly one signal per mode.
+
+# The small clean base each morph builds on, so a morph is a real deformation
+# field and not a bare geometric trick.
+CLEAN_MAGNITUDE = 0.02
+
+
+def clean_morph(mesh: Mesh, magnitude: float = CLEAN_MAGNITUDE) -> Mesh:
+    """A valid deformation. The Phase 3 smooth normal bump, small enough to pass
+    all three validity checks. Reconstruction proceeds and drift is produced as in
+    Phase 3."""
+    return deform(mesh, magnitude)
+
+
+def collision_morph(mesh: Mesh, closure: float = 1.0) -> Mesh:
+    """Wrap the span into a loop so the two free span edges meet: a collision.
+
+    The span coordinate (y, the spanwise axis) is bent into a circle in the (y, z)
+    plane. At full closure the bend sweeps a complete turn, so the leading-edge
+    corner at one span end lands exactly on the leading-edge corner at the other
+    span end. Those two nodes are not topological neighbors (opposite ends of the
+    span, no edge between them), so their coincidence is a genuine self-intersection
+    the carried topology can catch.
+
+    The bend is smooth, so no face inverts: this trips the collision check alone.
+    Thickness (z) rides radially outward, so the airfoil sections sweep around the
+    loop without renumbering or rewiring anything. closure scales the turn: 1.0
+    closes it (the corners coincide); a value just under 1.0 is the near-miss that
+    stops just short so the corners stay just clear of the tolerance.
+
+    Determinism: a fixed analytic map of position. The same mesh and the same
+    closure give identical vertices on repeat.
+    """
+    v = mesh.vertices
+    y = v[:, 1]
+    y_min = float(y.min())
+    span = float(y.max() - y_min)
+    radius = span / (2.0 * np.pi)
+    phi = (2.0 * np.pi * closure) * (y - y_min) / span
+    r = radius + v[:, 2]  # thickness rides radially
+    moved = np.empty_like(v)
+    moved[:, 0] = v[:, 0]  # chord stays the loop axis
+    moved[:, 1] = r * np.sin(phi)
+    moved[:, 2] = r * np.cos(phi)
+    return Mesh(vertices=moved, faces=mesh.faces.copy(), uv=mesh.uv.copy())
+
+
+def _interior_vertex_row(mesh: Mesh) -> int:
+    """A deterministic interior vertex: the one whose UV is nearest (0.5, 0.5).
+
+    Interior so it has faces on both sides to fold, and chosen by parameter so it
+    is the same vertex for any tessellation of the same surface.
+    """
+    target = np.array([0.5, 0.5])
+    return int(np.argmin(np.linalg.norm(mesh.uv - target, axis=1)))
+
+
+def fold_morph(mesh: Mesh, reach: float = 2.5) -> Mesh:
+    """Crease one interior vertex past its spanwise neighbor: a local fold.
+
+    After the clean base bump, a single interior vertex is pushed along the edge to
+    its next spanwise neighbor (the +v direction), reach times the length of that
+    edge. With reach above two it overshoots the neighbor, so the two faces that
+    share the vertex in v fold over and their orientation inverts against the
+    carried winding, while the rest of the mesh stays put. This trips the fold check
+    alone.
+
+    The push is along the spanwise edge on purpose. Spanwise cells are coarse here,
+    so the overshooting vertex lands well clear of any non-neighbor node (reach 2.5
+    sits between the second and third nodes along the span), and the crease does not
+    read as a collision. Pushing along the fine chordwise edge would instead land on
+    the next chord node and entangle the two signals. Nothing is renumbered, so
+    identity holds.
+
+    Determinism: the vertex is chosen by parameter (nearest UV to the center) and
+    the push is a fixed multiple of the spanwise edge length.
+    """
+    base = deform(mesh, CLEAN_MAGNITUDE)
+    moved = base.vertices.copy()
+    row = _interior_vertex_row(mesh)
+
+    # The +v neighbor shares a spanwise edge with this vertex. The grid lays out
+    # index = a * n_v + b with b the span index, so the +v neighbor is row + 1.
+    neighbor = row + 1
+    edge = base.vertices[neighbor] - base.vertices[row]
+    moved[row] = base.vertices[row] + reach * edge
+    return Mesh(vertices=moved, faces=base.faces.copy(), uv=base.uv.copy())
+
+
+# Registry so the entry point and the loop name modes the same way.
+MORPHS = {
+    "clean": clean_morph,
+    "collision": collision_morph,
+    "fold": fold_morph,
+}
+
+
 # --- the two entry-point modes --------------------------------------------
 
 
@@ -172,6 +279,29 @@ def solve_synthetic(
     return write_payload(dst, deformed, descriptor)
 
 
+def solve_morph(
+    out_dir: str | Path, in_dir: str | Path, index: int, morph: str, **kwargs
+) -> Path:
+    """Phase 4 solver for one iteration: apply a named morph mode.
+
+    Reads exchange/out/mesh_NNN.json, applies the morph (clean, collision, or
+    fold), and writes the result to exchange/in/mesh_NNN.json. The carried identity
+    and topology ride through unchanged: the morph moves vertices only, so the sent
+    node_ids, adjacency, and winding are written back verbatim. That is what lets
+    the validity gate read the returned geometry against the identity it sent.
+
+    The morphs are synthetic. This is the same seam where a real solver would
+    connect; a real solver that remeshes is the identity-not-preserved case the gate
+    is built to catch. No CFD runs here (AGENT.md hard do-not list).
+    """
+    src = Path(out_dir) / mesh_filename(index)
+    dst = Path(in_dir) / mesh_filename(index)
+    mesh, descriptor = read_payload(src)
+    topology = read_topology(src)
+    morphed = MORPHS[morph](mesh, **kwargs)
+    return write_payload(dst, morphed, descriptor, topology=topology)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="driftgauge solver side. Identity or synthetic mode."
@@ -181,9 +311,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--index", type=int, default=0)
     parser.add_argument(
         "--mode",
-        choices=("identity", "synthetic"),
+        choices=("identity", "synthetic", "clean", "collision", "fold"),
         default="identity",
-        help="identity returns the mesh unchanged; synthetic applies the bump.",
+        help=(
+            "identity returns the mesh unchanged; synthetic applies the bump; "
+            "clean/collision/fold are the Phase 4 morph modes."
+        ),
     )
     parser.add_argument(
         "--magnitude",
@@ -196,13 +329,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "identity":
         dst = solve_identity(args.out_dir, args.in_dir, args.index)
         print(f"solver_stub identity wrote {dst}")
-    else:
+    elif args.mode == "synthetic":
         dst = solve_synthetic(
             args.out_dir, args.in_dir, args.index, args.magnitude
         )
         print(
             f"solver_stub synthetic (magnitude {args.magnitude}) wrote {dst}"
         )
+    else:
+        dst = solve_morph(args.out_dir, args.in_dir, args.index, args.mode)
+        print(f"solver_stub {args.mode} morph wrote {dst}")
     return 0
 
 
