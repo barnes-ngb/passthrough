@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 exchange/out/*.json
 exchange/in/*.json
+artifacts/

@@ -9,6 +9,12 @@ description = "An instrument that measures whether a mesh to NURBS to mesh round
 requires-python = ">=3.10"
 dependencies = ["rhino3dm>=8.0", "numpy>=1.24", "scipy>=1.10"]
 
+# matplotlib is needed only for the Phase 5 static render. The report assembly and
+# the field-file emit do not import it; report.render imports it lazily. Kept an
+# optional extra so the core install stays lean: pip install -e .[viz]
+[project.optional-dependencies]
+viz = ["matplotlib>=3.7"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
