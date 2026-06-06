@@ -25,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from driftgauge.geometry import Mesh
+from driftgauge.geometry import Mesh, Topology, build_topology
 
 
 @dataclass
@@ -51,18 +51,34 @@ class Descriptor:
     provenance: dict[str, Any] = field(default_factory=dict)
 
 
-def encode(mesh: Mesh, descriptor: Descriptor) -> dict[str, Any]:
-    """Mesh and descriptor to a JSON-serializable dict.
+def encode(
+    mesh: Mesh, descriptor: Descriptor, topology: Topology | None = None
+) -> dict[str, Any]:
+    """Mesh, descriptor, and carried topology to a JSON-serializable dict.
 
     units and a short frame note travel with the payload so the geometry is
     unambiguous across the boundary.
+
+    The topology block carries identity across the boundary (see spec-04). If a
+    topology is not supplied it is built from the mesh, so identity rides along by
+    default. adjacency keys are written as strings because JSON object keys are
+    strings; decode_topology parses them back to integers.
     """
+    if topology is None:
+        topology = build_topology(mesh)
     return {
         "vertices": mesh.vertices.tolist(),
         "faces": mesh.faces.tolist(),
         "uv": mesh.uv.tolist(),
         "units": "mm",
         "frame": "x chordwise, y spanwise, z thickness; surface UV: u chordwise, v spanwise",
+        "topology": {
+            "node_ids": topology.node_ids.tolist(),
+            "adjacency": {
+                str(nid): nbrs for nid, nbrs in topology.adjacency.items()
+            },
+            "face_nodes": topology.face_nodes.tolist(),
+        },
         "descriptor": {
             "constraints": descriptor.constraints,
             "preserve": descriptor.preserve,
@@ -72,7 +88,11 @@ def encode(mesh: Mesh, descriptor: Descriptor) -> dict[str, Any]:
 
 
 def decode(obj: dict[str, Any]) -> tuple[Mesh, Descriptor]:
-    """Inverse of encode. Returns the same data model spec-01 defines."""
+    """Inverse of encode for mesh and descriptor.
+
+    The return arity is held at (mesh, descriptor) so the Phase 1 to 3 call sites
+    are unchanged. The carried topology is read separately by decode_topology.
+    """
     mesh = Mesh(
         vertices=np.asarray(obj["vertices"], dtype=float),
         faces=np.asarray(obj["faces"], dtype=int),
@@ -87,22 +107,55 @@ def decode(obj: dict[str, Any]) -> tuple[Mesh, Descriptor]:
     return mesh, descriptor
 
 
+def decode_topology(obj: dict[str, Any]) -> Topology:
+    """Read the carried topology from a payload.
+
+    A payload written before Phase 4 has no topology block, so the topology is
+    rebuilt from the decoded mesh and old files still load. adjacency string keys
+    are parsed back to integers here.
+    """
+    if "topology" not in obj:
+        mesh, _ = decode(obj)
+        return build_topology(mesh)
+    t = obj["topology"]
+    adjacency = {int(k): list(v) for k, v in t["adjacency"].items()}
+    return Topology(
+        node_ids=np.asarray(t["node_ids"], dtype=int),
+        adjacency=adjacency,
+        face_nodes=np.asarray(t["face_nodes"], dtype=int),
+    )
+
+
 def mesh_filename(index: int) -> str:
     """mesh_NNN.json with a zero-padded iteration index. The same index in out/
     and in/ is one round trip."""
     return f"mesh_{index:03d}.json"
 
 
-def write_payload(path: str | Path, mesh: Mesh, descriptor: Descriptor) -> Path:
-    """Write the encoded payload to path as JSON."""
+def write_payload(
+    path: str | Path,
+    mesh: Mesh,
+    descriptor: Descriptor,
+    topology: Topology | None = None,
+) -> Path:
+    """Write the encoded payload to path as JSON. Topology rides along; it is
+    built from the mesh when not supplied."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
-        json.dump(encode(mesh, descriptor), fh, indent=2)
+        json.dump(encode(mesh, descriptor, topology), fh, indent=2)
     return path
 
 
 def read_payload(path: str | Path) -> tuple[Mesh, Descriptor]:
-    """Read and decode a JSON payload from path."""
+    """Read and decode mesh and descriptor from path. The Phase 1 to 3 reader."""
     with Path(path).open("r", encoding="utf-8") as fh:
         return decode(json.load(fh))
+
+
+def read_payload_full(path: str | Path) -> tuple[Mesh, Descriptor, Topology]:
+    """Read mesh, descriptor, and carried topology from path. The Phase 4 reader."""
+    with Path(path).open("r", encoding="utf-8") as fh:
+        obj = json.load(fh)
+    mesh, descriptor = decode(obj)
+    return mesh, descriptor, decode_topology(obj)

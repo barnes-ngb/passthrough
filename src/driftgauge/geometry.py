@@ -18,7 +18,7 @@ Named boundaries surfaced in this module:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import rhino3dm as r3
@@ -44,6 +44,77 @@ class Mesh:
         self.uv = np.asarray(self.uv, dtype=float)
         if self.vertices.shape[0] != self.uv.shape[0]:
             raise ValueError("vertices and uv must have the same length")
+
+
+@dataclass
+class Topology:
+    """The carried identity and connectivity of a mesh. See spec-04.
+
+    A mesh's vertices say where the points are. They do not say which point is
+    which or which points were connected. The Topology carries that, so a returned
+    mesh can be checked against what was sent.
+
+    node_ids:  (N,) int, one stable ID per vertex, by vertex position. For a fresh
+               tessellation these are the vertex indices, carried explicitly so a
+               returned mesh is checked, not assumed.
+    adjacency: node_id -> sorted list of neighbor node_ids, derived from the mesh
+               edges. This is what tells legal neighbor-closeness from an illegal
+               collision: an edge is exactly the statement that two nodes are
+               allowed to be near each other.
+    face_nodes: (M, k) int, each face's node_ids in winding order. The faces array
+               expressed in node IDs, so the winding is identity-anchored and the
+               fold check reads orientation against the carried winding rather than
+               against vertex order.
+
+    Built by build_topology, serialized in the exchange payload, and preserved
+    verbatim by the synthetic solver. The solver moves vertices; it does not
+    renumber or rewire.
+    """
+
+    node_ids: np.ndarray
+    adjacency: dict[int, list[int]] = field(default_factory=dict)
+    face_nodes: np.ndarray = field(default_factory=lambda: np.empty((0, 0), int))
+
+    def __post_init__(self) -> None:
+        self.node_ids = np.asarray(self.node_ids, dtype=int)
+        self.face_nodes = np.asarray(self.face_nodes, dtype=int)
+        # Normalize adjacency to int keys and sorted int neighbor lists.
+        self.adjacency = {
+            int(k): sorted(int(n) for n in v) for k, v in self.adjacency.items()
+        }
+
+
+def build_topology(mesh: Mesh, node_ids: np.ndarray | None = None) -> Topology:
+    """Derive the carried topology from a mesh.
+
+    node_ids defaults to the vertex indices. Edge adjacency is built from the face
+    rings (each face contributes its consecutive, wrapping vertex pairs as
+    undirected edges). face_nodes is the faces array mapped through node_ids, so it
+    records the winding order in identity terms.
+    """
+    n = mesh.vertices.shape[0]
+    if node_ids is None:
+        node_ids = np.arange(n, dtype=int)
+    else:
+        node_ids = np.asarray(node_ids, dtype=int)
+        if node_ids.shape[0] != n:
+            raise ValueError("node_ids must have one entry per vertex")
+
+    neighbors: dict[int, set[int]] = {int(node_ids[i]): set() for i in range(n)}
+    for face in mesh.faces:
+        k = len(face)
+        for a in range(k):
+            i = int(face[a])
+            j = int(face[(a + 1) % k])
+            na, nb = int(node_ids[i]), int(node_ids[j])
+            neighbors[na].add(nb)
+            neighbors[nb].add(na)
+
+    adjacency = {nid: sorted(s) for nid, s in neighbors.items()}
+    face_nodes = (
+        node_ids[mesh.faces] if mesh.faces.size else np.empty((0, 0), dtype=int)
+    )
+    return Topology(node_ids=node_ids, adjacency=adjacency, face_nodes=face_nodes)
 
 
 # Base section profile in (chord, thickness). Rounded leading edge, tapering
