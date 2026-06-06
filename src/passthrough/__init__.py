@@ -4,16 +4,16 @@ trip preserves the surface properties an optimization loop is sensitive to.
 It is not a reconstruction solver. See AGENT.md.
 """
 
-from driftgauge.geometry import Mesh, build_wing_surface, tessellate, evaluate, control_net
-from driftgauge.metrics import hausdorff, nearest_distances
-from driftgauge.reconstruct import (
+from passthrough.geometry import Mesh, build_wing_surface, tessellate, evaluate, control_net
+from passthrough.driftgauge import hausdorff, nearest_distances
+from passthrough.reconstruct import (
     Reconstructor,
     ClassicalReconstructor,
     LearnedReconstructor,
     clamped_uniform_knots,
 )
-from driftgauge.encode import Descriptor, encode, decode, write_payload, read_payload, mesh_filename
-from driftgauge.solver_stub import (
+from passthrough.encode import Descriptor, encode, decode, write_payload, read_payload, mesh_filename
+from passthrough.solver_stub import (
     solve_identity,
     solve_synthetic,
     deform,

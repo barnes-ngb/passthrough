@@ -15,7 +15,7 @@ category 2 method would enter is the optional triangle-triangle narrow-phase
 refinement of the collision check, which is named in the spec and not built.
 
 A validity result is kept semantically distinct from positional drift
-(metrics.py) and from constraint residuals (constraints.py). Drift answers "did
+(driftgauge.py) and from constraint residuals (constraints.py). Drift answers "did
 the shape move." A residual answers "did a declared property survive." A validity
 result answers "is the returned mesh physical at all." This module returns the
 third only. It computes no Hausdorff number and no residual.
@@ -34,8 +34,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.spatial import cKDTree
 
-from driftgauge.encode import Topology
-from driftgauge.geometry import Mesh
+from passthrough.encode import Topology
+from passthrough.geometry import Mesh
 
 
 # --- result types ---------------------------------------------------------

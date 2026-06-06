@@ -6,7 +6,7 @@ import json
 
 import numpy as np
 
-from driftgauge.encode import (
+from passthrough.encode import (
     Descriptor,
     decode,
     encode,
@@ -14,7 +14,7 @@ from driftgauge.encode import (
     read_payload,
     write_payload,
 )
-from driftgauge.geometry import build_wing_surface, tessellate
+from passthrough.geometry import build_wing_surface, tessellate
 
 
 def _sample_descriptor() -> Descriptor:

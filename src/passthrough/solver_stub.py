@@ -42,13 +42,13 @@ from pathlib import Path
 
 import numpy as np
 
-from driftgauge.encode import (
+from passthrough.encode import (
     mesh_filename,
     read_payload,
     read_topology,
     write_payload,
 )
-from driftgauge.geometry import Mesh
+from passthrough.geometry import Mesh
 
 # --- the synthetic field --------------------------------------------------
 #

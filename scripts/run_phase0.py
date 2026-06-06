@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from driftgauge.geometry import build_wing_surface, tessellate  # noqa: E402
-from driftgauge.metrics import hausdorff  # noqa: E402
+from passthrough.geometry import build_wing_surface, tessellate  # noqa: E402
+from passthrough.driftgauge import hausdorff  # noqa: E402
 
 GATE_TOL = 1e-9
 

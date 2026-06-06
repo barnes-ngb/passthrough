@@ -25,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from driftgauge.geometry import Mesh
+from passthrough.geometry import Mesh
 
 
 @dataclass
