@@ -13,7 +13,14 @@ from driftgauge.reconstruct import (
     clamped_uniform_knots,
 )
 from driftgauge.encode import Descriptor, encode, decode, write_payload, read_payload, mesh_filename
-from driftgauge.solver_stub import solve_identity
+from driftgauge.solver_stub import (
+    solve_identity,
+    solve_synthetic,
+    deform,
+    displacement,
+    pressure_bump,
+    surface_normals,
+)
 
 __all__ = [
     "Mesh",
@@ -34,4 +41,9 @@ __all__ = [
     "read_payload",
     "mesh_filename",
     "solve_identity",
+    "solve_synthetic",
+    "deform",
+    "displacement",
+    "pressure_bump",
+    "surface_normals",
 ]
