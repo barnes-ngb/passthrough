@@ -11,11 +11,11 @@ solver_stub, not an inline function call dressed up as a boundary.
 
 from __future__ import annotations
 
-from driftgauge.encode import Descriptor, mesh_filename, read_payload, write_payload
-from driftgauge.geometry import build_wing_surface, tessellate
-from driftgauge.metrics import hausdorff
-from driftgauge.reconstruct import ClassicalReconstructor
-from driftgauge.solver_stub import solve_identity
+from passthrough.encode import Descriptor, mesh_filename, read_payload, write_payload
+from passthrough.geometry import build_wing_surface, tessellate
+from passthrough.driftgauge import hausdorff
+from passthrough.reconstruct import ClassicalReconstructor
+from passthrough.solver_stub import solve_identity
 
 
 def _descriptor() -> Descriptor:

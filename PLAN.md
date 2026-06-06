@@ -1,4 +1,4 @@
-# PLAN.md — driftgauge build
+# PLAN.md — passthrough build
 
 Phased build. Each phase ends at a human approval gate. Do not start a phase until the previous gate passes and the owner approves. Build the hardest principle first, then the loop around it.
 
@@ -80,7 +80,24 @@ Category: 1.
 
 ---
 
-## Phase 4 — The artifact
+## Phase 4 — Identity, topology, and the validity gate
+
+Goal: carry identity and topology across the boundary and use them to detect a returned mesh that is not physical before any reconstruction runs. This is the headline phase, the part the technical screen probed. It sits between decode and reconstruct in the loop. Built.
+
+Deliverables:
+- `spec-04-identity-validity.md`, written at the start of this phase.
+- The exchange extended (`encode.py`, schema, descriptor) to carry a stable node ID per vertex, the edge adjacency keyed by node ID, and the per-face winding. The synthetic solver returns them unchanged.
+- `validity.py`: three checks, one per signal. Identity integrity flags a missing or rewired node ID as `identity_not_preserved`. Collision flags non-neighbor vertices within a tolerance, read against the carried adjacency. Fold flags a face whose Newell normal inverts against its edge-neighbors. A `validity_gate` runs identity first and stops on failure, then runs collision and fold.
+- Synthetic solver modes for testing: clean morph, collision morph, fold morph, each deterministic.
+- The loop runs the validity gate after decode and before reconstruction. Reconstruction and drift run only on a valid return.
+
+Gate: clean passes and reconstructs. Collision is caught naming the non-neighbor pair, and a near miss that stays clear of the tolerance passes. Fold is caught naming the inverted face. Altered connectivity is flagged as identity-not-preserved, a distinct signal from collision. Each mode is deterministic through the file round trip. A validity result carries no Hausdorff number and no constraint residual.
+
+Category: 1, with the optional triangle-triangle narrow-phase refinement of the collision check as category 2, named and not built.
+
+---
+
+## Phase 5 — The artifact
 
 Goal: the visual the demo shows, and the fallback that survives the demo dying.
 
@@ -95,9 +112,9 @@ Category: 1.
 
 ---
 
-## Phase 5 — C# Grasshopper plugin (earned stretch)
+## Phase 6 — C# Grasshopper plugin (earned stretch)
 
-Goal: a native GH component that renders the deviation field, demonstrating C# on their stack. Only after Phases 0 through 4 are green and time remains.
+Goal: a native GH component that renders the deviation field, demonstrating C# on their stack. Only after Phases 0 through 5 are green and time remains.
 
 Deliverables:
 - A GHA component that reads the same report file and renders the colored deviation mesh natively.
@@ -106,11 +123,11 @@ Gate: the component loads in Grasshopper and renders the field matching the file
 
 Category: 1.
 
-Note: this is packaging, not the spike. It cannot fail in an interesting way, so it earns its place only after the core is proven. Do not start it before Phase 4 is approved.
+Note: this is packaging, not the spike. It cannot fail in an interesting way, so it earns its place only after the core is proven. Do not start it before Phase 5 is approved.
 
 ---
 
-## Phase 6 — Live service (narration only, probably never)
+## Phase 7 — Live service (narration only, probably never)
 
 If a running service is ever wanted, it is a deployment wrapper around the existing file contract, not a rebuild. Out of scope for the build. Hold it as a sentence in the talk about deployment options, not as code.
 

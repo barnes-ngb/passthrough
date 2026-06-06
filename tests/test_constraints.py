@@ -18,7 +18,7 @@ from __future__ import annotations
 import numpy as np
 import rhino3dm as r3
 
-from driftgauge.constraints import (
+from passthrough.constraints import (
     ConstraintResult,
     check_constraints,
     curvature_field,
@@ -26,15 +26,15 @@ from driftgauge.constraints import (
     ruled_residual,
     surface_derivatives,
 )
-from driftgauge.encode import Descriptor
-from driftgauge.geometry import build_wing_surface, evaluate, tessellate
-from driftgauge.reconstruct import (
+from passthrough.encode import Descriptor
+from passthrough.geometry import build_wing_surface, evaluate, tessellate
+from passthrough.reconstruct import (
     ClassicalReconstructor,
     basis_derivatives_1d,
     basis_matrix_1d,
     clamped_uniform_knots,
 )
-from driftgauge.solver_stub import solve_identity
+from passthrough.solver_stub import solve_identity
 
 
 # --- fixtures -------------------------------------------------------------
@@ -325,7 +325,7 @@ def test_descriptor_survives_the_exchange_unchanged(tmp_path):
 
     out_dir = tmp_path / "out"
     in_dir = tmp_path / "in"
-    from driftgauge.encode import mesh_filename, write_payload, read_payload
+    from passthrough.encode import mesh_filename, write_payload, read_payload
 
     write_payload(out_dir / mesh_filename(0), mesh, desc)
     solve_identity(out_dir, in_dir, 0)

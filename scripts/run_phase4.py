@@ -23,7 +23,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from driftgauge.encode import (  # noqa: E402
+from passthrough.encode import (  # noqa: E402
     Descriptor,
     mesh_filename,
     read_payload,
@@ -31,11 +31,11 @@ from driftgauge.encode import (  # noqa: E402
     topology_from_mesh,
     write_payload,
 )
-from driftgauge.geometry import build_wing_surface, tessellate  # noqa: E402
-from driftgauge.metrics import hausdorff  # noqa: E402
-from driftgauge.reconstruct import ClassicalReconstructor  # noqa: E402
-from driftgauge.solver_stub import solve_morph  # noqa: E402
-from driftgauge.validity import check_identity, validity_gate  # noqa: E402
+from passthrough.geometry import build_wing_surface, tessellate  # noqa: E402
+from passthrough.driftgauge import hausdorff  # noqa: E402
+from passthrough.reconstruct import ClassicalReconstructor  # noqa: E402
+from passthrough.solver_stub import solve_morph  # noqa: E402
+from passthrough.validity import check_identity, validity_gate  # noqa: E402
 
 N_U, N_V = 24, 12
 

@@ -11,9 +11,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from driftgauge.geometry import build_wing_surface, control_net, evaluate, tessellate
-from driftgauge.metrics import hausdorff
-from driftgauge.reconstruct import (
+from passthrough.geometry import build_wing_surface, control_net, evaluate, tessellate
+from passthrough.driftgauge import hausdorff
+from passthrough.reconstruct import (
     ClassicalReconstructor,
     LearnedReconstructor,
     Reconstructor,

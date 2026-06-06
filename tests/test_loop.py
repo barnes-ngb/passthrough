@@ -29,12 +29,12 @@ from __future__ import annotations
 import numpy as np
 import rhino3dm as r3
 
-from driftgauge.constraints import check_constraints, curvature_residual, ruled_residual
-from driftgauge.encode import Descriptor, mesh_filename, read_payload, write_payload
-from driftgauge.geometry import build_wing_surface, tessellate
-from driftgauge.metrics import hausdorff
-from driftgauge.reconstruct import ClassicalReconstructor
-from driftgauge.solver_stub import deform, solve_synthetic
+from passthrough.constraints import check_constraints, curvature_residual, ruled_residual
+from passthrough.encode import Descriptor, mesh_filename, read_payload, write_payload
+from passthrough.geometry import build_wing_surface, tessellate
+from passthrough.driftgauge import hausdorff
+from passthrough.reconstruct import ClassicalReconstructor
+from passthrough.solver_stub import deform, solve_synthetic
 
 
 # --- fixtures -------------------------------------------------------------

@@ -10,7 +10,7 @@ reports the residual next to the declared tolerance with a pass/fail flag. No
 tolerance is hardcoded here.
 
 A residual is the degree of constraint violation. It is kept semantically
-distinct from positional drift (the Hausdorff number in metrics.py). This module
+distinct from positional drift (the Hausdorff number in driftgauge.py). This module
 returns residuals only. It does not compute or fold in drift.
 
 Two constraint types are defined this phase:
@@ -43,8 +43,8 @@ from typing import Any
 import numpy as np
 import rhino3dm as r3
 
-from driftgauge.encode import Descriptor
-from driftgauge.reconstruct import basis_derivatives_1d
+from passthrough.encode import Descriptor
+from passthrough.reconstruct import basis_derivatives_1d
 
 
 # --- result type ----------------------------------------------------------

@@ -1,6 +1,6 @@
-# AGENT.md — driftgauge
+# AGENT.md — passthrough
 
-> Name is a placeholder. To rename, find-replace `driftgauge` across the repo. One operation.
+> The project is passthrough. `driftgauge` is the drift-measurement module inside the passthrough system; it keeps its name as a named sub-component, while the system identity (repo, package, charter, docs) is passthrough.
 
 This file is the project charter. Read it at the start of every session before writing or changing code. It defines what this project is, what it is not, and how work proceeds. If a request conflicts with this charter, stop and raise the conflict rather than resolving it silently.
 
@@ -49,7 +49,7 @@ If a piece of work does not fit category 1 or 2 honestly, it does not ship.
 ## Architecture
 
 ```
-driftgauge/
+passthrough/
   AGENT.md                  # this charter
   PLAN.md                   # phased build, approval gates
   README.md                 # instrument-not-solver, stated first
@@ -61,12 +61,12 @@ driftgauge/
     out/                    # geometry side writes mesh + descriptor here
     in/                     # solver side writes updated mesh here
     schema.md               # the contract (mirrors spec-02)
-  src/driftgauge/
+  src/passthrough/
     geometry.py             # source NURBS, UV-grid tessellation, I/O (rhino3dm)
     encode.py               # mesh + descriptor <-> exchange format
     solver_stub.py          # reads out/, applies synthetic deformation, writes in/
     reconstruct.py          # Reconstructor protocol + ClassicalReconstructor  [SEAM]
-    metrics.py              # Hausdorff (max/mean/median), per-point deviation field
+    driftgauge.py           # the drift meter: Hausdorff (max/mean/median), per-point deviation field
     constraints.py          # the loss budget made executable; pass/fail + residual
     report.py               # drift + residuals + deviation field for display
   tests/
@@ -111,7 +111,7 @@ Keep both interfaces narrow and stable. The value of the project is that each bl
 - No Docker. No admin rights on the machine. Do not propose anything requiring either.
 - Python is the engine. numpy and scipy for math. rhino3dm for NURBS and mesh data and file I/O.
 - Rhino and Grasshopper are display only, fed from files. Headless Python is where correctness is proven.
-- A C# Grasshopper plugin is an earned stretch (Phase 5), not a dependency.
+- A C# Grasshopper plugin is an earned stretch (Phase 6), not a dependency.
 
 ## Hard do-not list
 

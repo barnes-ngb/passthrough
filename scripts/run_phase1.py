@@ -16,11 +16,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from driftgauge.encode import Descriptor, mesh_filename, read_payload, write_payload  # noqa: E402
-from driftgauge.geometry import build_wing_surface, tessellate  # noqa: E402
-from driftgauge.metrics import hausdorff  # noqa: E402
-from driftgauge.reconstruct import ClassicalReconstructor  # noqa: E402
-from driftgauge.solver_stub import solve_identity  # noqa: E402
+from passthrough.encode import Descriptor, mesh_filename, read_payload, write_payload  # noqa: E402
+from passthrough.geometry import build_wing_surface, tessellate  # noqa: E402
+from passthrough.driftgauge import hausdorff  # noqa: E402
+from passthrough.reconstruct import ClassicalReconstructor  # noqa: E402
+from passthrough.solver_stub import solve_identity  # noqa: E402
 
 N_U, N_V = 40, 16
 HONEST_FIT_MAX_BOUND = 3e-3

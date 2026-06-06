@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from driftgauge.metrics import hausdorff, nearest_distances
+from passthrough.driftgauge import hausdorff, nearest_distances
 
 
 def _grid_points():

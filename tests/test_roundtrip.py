@@ -8,8 +8,8 @@ downstream can be trusted.
 
 from __future__ import annotations
 
-from driftgauge.geometry import build_wing_surface, tessellate
-from driftgauge.metrics import hausdorff
+from passthrough.geometry import build_wing_surface, tessellate
+from passthrough.driftgauge import hausdorff
 
 GATE_TOL = 1e-9
 

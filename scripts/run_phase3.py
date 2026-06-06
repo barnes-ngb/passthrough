@@ -23,12 +23,12 @@ import rhino3dm as r3
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from driftgauge.constraints import check_constraints, curvature_residual  # noqa: E402
-from driftgauge.encode import Descriptor, mesh_filename, read_payload, write_payload  # noqa: E402
-from driftgauge.geometry import build_wing_surface, tessellate  # noqa: E402
-from driftgauge.metrics import hausdorff  # noqa: E402
-from driftgauge.reconstruct import ClassicalReconstructor  # noqa: E402
-from driftgauge.solver_stub import solve_synthetic  # noqa: E402
+from passthrough.constraints import check_constraints, curvature_residual  # noqa: E402
+from passthrough.encode import Descriptor, mesh_filename, read_payload, write_payload  # noqa: E402
+from passthrough.geometry import build_wing_surface, tessellate  # noqa: E402
+from passthrough.driftgauge import hausdorff  # noqa: E402
+from passthrough.reconstruct import ClassicalReconstructor  # noqa: E402
+from passthrough.solver_stub import solve_synthetic  # noqa: E402
 
 N_U, N_V = 40, 16
 MAGNITUDES = [0.0, 0.02, 0.04, 0.08, 0.16]

@@ -39,7 +39,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from driftgauge.encode import (
+from passthrough.encode import (
     Descriptor,
     decode_topology,
     encode,
@@ -49,11 +49,11 @@ from driftgauge.encode import (
     topology_from_mesh,
     write_payload,
 )
-from driftgauge.geometry import build_wing_surface, tessellate
-from driftgauge.metrics import hausdorff
-from driftgauge.reconstruct import ClassicalReconstructor
-from driftgauge.solver_stub import solve_morph
-from driftgauge.validity import (
+from passthrough.geometry import build_wing_surface, tessellate
+from passthrough.driftgauge import hausdorff
+from passthrough.reconstruct import ClassicalReconstructor
+from passthrough.solver_stub import solve_morph
+from passthrough.validity import (
     check_collision,
     check_fold,
     check_identity,
