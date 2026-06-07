@@ -27,7 +27,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from passthrough.constraints import check_constraints
+from passthrough.constraints import check_constraints, curvature_deviation_field
 from passthrough.driftgauge import hausdorff, nearest_distances
 from passthrough.encode import (
     Descriptor,
@@ -41,12 +41,14 @@ from passthrough.reconstruct import ClassicalReconstructor
 from passthrough.report import (
     LoopReport,
     assemble_report,
+    build_comparison_spec,
     build_render_spec,
     deviation_field,
     field_to_dict,
     read_field,
     read_report,
     render,
+    render_comparison,
     report_from_dict,
     report_to_dict,
     write_field,
@@ -115,6 +117,7 @@ def _clean_pass(out_dir, in_dir, index=0):
     drift = hausdorff(returned.vertices, remesh.vertices)
     source_surface = build_wing_surface()
     constraints = check_constraints(desc, recon, source=source_surface)
+    curv = curvature_deviation_field(recon, source_surface)
 
     return assemble_report(
         remesh,
@@ -123,6 +126,8 @@ def _clean_pass(out_dir, in_dir, index=0):
         drift=drift,
         constraints=constraints,
         provenance=desc.provenance,
+        curvature_deviation=curv["deviation"],
+        curvature_points=curv["points"],
     ), returned, remesh
 
 
@@ -339,3 +344,115 @@ def test_collision_and_fold_titles_name_the_signal(tmp_path):
     spec = build_render_spec(report)
     assert "collision" in spec.title
     assert "no reconstruction" in spec.title
+
+
+# --- addendum gates: the two-panel comparison render ----------------------
+
+
+def test_comparison_spec_assembles_two_panels(tmp_path):
+    # Given a clean pass, the comparison spec carries a positional panel and a
+    # curvature panel, each with a deviation field of consistent length: positional
+    # one-per-vertex, curvature one-per-sample-point.
+    report, _, remesh = _clean_pass(tmp_path / "out", tmp_path / "in")
+    spec = build_comparison_spec(report)
+
+    assert spec.positional.deviation is not None
+    assert spec.curvature.deviation is not None
+    assert spec.reconstructed
+
+    # Each panel's field pairs with its own points.
+    assert spec.positional.deviation.shape[0] == spec.positional.points.shape[0]
+    assert spec.positional.points.shape[0] == remesh.vertices.shape[0]
+    assert spec.curvature.deviation.shape[0] == spec.curvature.points.shape[0]
+
+
+def test_comparison_render_writes_a_valid_png(tmp_path):
+    # The two-panel render writes a non-empty PNG for a clean pass.
+    report, _, _ = _clean_pass(tmp_path / "out", tmp_path / "in")
+    path = render_comparison(report, tmp_path / "comparison.png")
+    assert path.exists()
+    assert _png_is_valid(path)
+
+
+def test_comparison_fields_are_distinct_quantities(tmp_path):
+    # The curvature panel is sourced from the curvature check, not a copy of the
+    # positional field. Rebuild the pass inline so the reconstruction is in hand, then
+    # confirm the report's curvature field is exactly what the curvature check produces.
+    out_dir, in_dir = tmp_path / "out", tmp_path / "in"
+    source = _source_mesh()
+    write_payload(out_dir / mesh_filename(0), source, _descriptor(0))
+    sent = read_topology(out_dir / mesh_filename(0))
+    tol = _tolerance(source, sent)
+
+    solve_morph(out_dir, in_dir, 0, "clean")
+    returned, _ = read_payload(in_dir / mesh_filename(0))
+    returned_topo = read_topology(in_dir / mesh_filename(0))
+    gate = validity_gate(sent, returned, returned_topo, tol)
+
+    rc = ClassicalReconstructor(n_ctrl_u=7, n_ctrl_v=4)
+    recon = rc.reconstruct(returned.vertices, returned.uv)
+    remesh = tessellate(recon, N_U, N_V)
+    source_surface = build_wing_surface()
+
+    deviation = deviation_field(remesh.vertices, returned.vertices)
+    curv = curvature_deviation_field(recon, source_surface)
+    report = assemble_report(
+        remesh,
+        gate,
+        deviation=deviation,
+        drift=hausdorff(returned.vertices, remesh.vertices),
+        curvature_deviation=curv["deviation"],
+        curvature_points=curv["points"],
+    )
+
+    # The report's curvature field is the curvature check's output, not the positional.
+    assert np.allclose(report.curvature_deviation, curv["deviation"])
+    assert report.curvature_deviation.shape != report.deviation.shape
+    # The thesis: positional drift is tiny while curvature deviation is large. The two
+    # quantities are not interchangeable.
+    assert report.deviation.max() < report.curvature_deviation.max()
+
+
+def test_comparison_panels_have_separate_scales(tmp_path):
+    # Each panel carries its own (min, max), so the render does not flatten one panel
+    # onto the other's range. The two magnitudes differ by orders, so the scales differ.
+    report, _, _ = _clean_pass(tmp_path / "out", tmp_path / "in")
+    spec = build_comparison_spec(report)
+
+    assert spec.positional.scale is not None
+    assert spec.curvature.scale is not None
+    assert spec.positional.scale != spec.curvature.scale
+
+    pos = spec.positional
+    cur = spec.curvature
+    assert pos.scale == (float(pos.deviation.min()), float(pos.deviation.max()))
+    assert cur.scale == (float(cur.deviation.min()), float(cur.deviation.max()))
+
+
+def test_single_panel_render_spec_carries_no_curvature(tmp_path):
+    # The single-panel render is unchanged: its spec is the positional field alone,
+    # with no curvature attribute. The two-panel render is the new, separate path.
+    report, _, _ = _clean_pass(tmp_path / "out", tmp_path / "in")
+    spec = build_render_spec(report)
+    assert spec.deviation is not None
+    assert not hasattr(spec, "curvature")
+    assert not hasattr(spec, "curvature_deviation")
+
+
+def test_comparison_flagged_pass_is_gray_with_flag(tmp_path):
+    # On a flagged pass there is no reconstruction and no deviation fields, so the
+    # comparison shows the gray-with-flag state, not two empty panels. The collision
+    # overlay is still present, and the render writes a valid PNG.
+    report, _ = _flagged_pass(tmp_path / "out", tmp_path / "in", "collision")
+    spec = build_comparison_spec(report)
+
+    assert not spec.reconstructed
+    assert spec.positional.deviation is None
+    assert spec.curvature.deviation is None
+    assert spec.positional.scale is None
+    assert spec.curvature.scale is None
+    assert spec.collision_segments  # the coinciding pair is still marked
+
+    path = render_comparison(report, tmp_path / "collision_comparison.png")
+    assert path.exists()
+    assert _png_is_valid(path)

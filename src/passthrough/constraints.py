@@ -239,6 +239,52 @@ def ruled_residual(
 # --- curvature residual ---------------------------------------------------
 
 
+def curvature_deviation_field(
+    reconstruction: r3.NurbsSurface,
+    source: r3.NurbsSurface,
+    n_u: int = 25,
+    n_v: int = 9,
+) -> dict[str, np.ndarray]:
+    """The per-sample curvature deviation field, with the points it sits on.
+
+    Both surfaces are sampled on the same regular n_u by n_v grid on [0, 1]^2, so
+    points correspond by parameter (the fixed-parameterization assumption the
+    instrument already carries). The pointwise deviation is the absolute
+    difference in mean curvature, |H_reconstruction - H_source|.
+
+    This is the per-point form of the quantity curvature_residual aggregates, the
+    way deviation_field is the per-vertex form of the drift summary. It adds no
+    measurement: curvature_residual reads its numbers from exactly this field. The
+    display surfaces it to color the curvature panel; the leading edge (u near 0)
+    carries the concentration.
+
+    Returns:
+        deviation:          |H_recon - H_source| per sample, the curvature field.
+        gaussian_deviation: |K_recon - K_source| per sample, for context.
+        points:             (n_u * n_v, 3) reconstruction positions at the samples,
+                            so the field can be drawn over the geometry.
+        us, vs:             the paired sample parameters, u chordwise (LE at u = 0).
+
+    Units: inverse length (one over a radius) for the deviation fields.
+    """
+    grid_u = np.linspace(0.0, 1.0, n_u)
+    grid_v = np.linspace(0.0, 1.0, n_v)
+    us = np.repeat(grid_u, n_v)
+    vs = np.tile(grid_v, n_u)
+
+    cr = curvature_field(reconstruction, us, vs)
+    cs = curvature_field(source, us, vs)
+    points = surface_derivatives(reconstruction, us, vs)["S"]
+
+    return {
+        "deviation": np.abs(cr["H"] - cs["H"]),
+        "gaussian_deviation": np.abs(cr["K"] - cs["K"]),
+        "points": points,
+        "us": us,
+        "vs": vs,
+    }
+
+
 def curvature_residual(
     reconstruction: r3.NurbsSurface,
     source: r3.NurbsSurface,
@@ -248,10 +294,8 @@ def curvature_residual(
 ) -> dict[str, float]:
     """Deviation between the reconstruction and source curvature fields.
 
-    Both surfaces are sampled on the same regular n_u by n_v grid on [0, 1]^2, so
-    points correspond by parameter (the fixed-parameterization assumption the
-    instrument already carries). The pointwise deviation is the absolute
-    difference in mean curvature, |H_reconstruction - H_source|.
+    Aggregates the per-sample field curvature_deviation_field computes, so the
+    residual and the displayed field read one set of numbers and cannot diverge.
 
     Returns:
         max:          headline residual, the worst pointwise deviation. This is
@@ -263,17 +307,10 @@ def curvature_residual(
 
     Units: inverse length (one over a radius).
     """
-    grid_u = np.linspace(0.0, 1.0, n_u)
-    grid_v = np.linspace(0.0, 1.0, n_v)
-    us = np.repeat(grid_u, n_v)
-    vs = np.tile(grid_v, n_u)
-
-    cr = curvature_field(reconstruction, us, vs)
-    cs = curvature_field(source, us, vs)
-
-    dH = np.abs(cr["H"] - cs["H"])
-    dK = np.abs(cr["K"] - cs["K"])
-    le = us <= le_fraction
+    fld = curvature_deviation_field(reconstruction, source, n_u, n_v)
+    dH = fld["deviation"]
+    dK = fld["gaussian_deviation"]
+    le = fld["us"] <= le_fraction
 
     return {
         "max": float(dH.max()),
