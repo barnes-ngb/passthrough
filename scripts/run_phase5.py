@@ -23,7 +23,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from passthrough.constraints import check_constraints  # noqa: E402
+from passthrough.constraints import (  # noqa: E402
+    check_constraints,
+    curvature_deviation_field,
+)
 from passthrough.driftgauge import hausdorff  # noqa: E402
 from passthrough.encode import (  # noqa: E402
     Descriptor,
@@ -38,6 +41,7 @@ from passthrough.report import (  # noqa: E402
     assemble_report,
     deviation_field,
     render,
+    render_comparison,
     write_field,
     write_report,
 )
@@ -73,13 +77,19 @@ def _tolerance(mesh, topology) -> float:
 
 
 def _emit(report, artifacts, name):
-    """Write the report, the field file, and the render for one pass. Print paths."""
+    """Write the report, the field file, and both renders for one pass. Print paths.
+
+    The single-panel render is the positional fallback; the comparison render is the
+    two-panel positional-vs-curvature picture (the thesis centerpiece on a clean pass,
+    the gray-with-flag fallback on a flagged one)."""
     report_path = write_report(artifacts / f"{name}_report.json", report)
     field_path = write_field(artifacts / f"{name}_field.json", report)
     png_path = render(report, artifacts / f"{name}.png")
-    print(f"  report: {report_path}")
-    print(f"  field:  {field_path}")
-    print(f"  render: {png_path}")
+    comparison_path = render_comparison(report, artifacts / f"{name}_comparison.png")
+    print(f"  report:     {report_path}")
+    print(f"  field:      {field_path}")
+    print(f"  render:     {png_path}")
+    print(f"  comparison: {comparison_path}")
     return png_path
 
 
@@ -107,6 +117,7 @@ def main() -> int:
     drift = hausdorff(returned.vertices, remesh.vertices)
     deviation = deviation_field(remesh.vertices, returned.vertices)
     constraints = check_constraints(desc, recon, source=source_surface)
+    curv = curvature_deviation_field(recon, source_surface)
     clean_report = assemble_report(
         remesh,
         gate,
@@ -114,10 +125,13 @@ def main() -> int:
         drift=drift,
         constraints=constraints,
         provenance=desc.provenance,
+        curvature_deviation=curv["deviation"],
+        curvature_points=curv["points"],
     )
     print(
         f"  drift max {drift['max']:.5e}, mean {drift['mean']:.5e}; "
-        f"deviation max {deviation.max():.5e} mm"
+        f"positional deviation max {deviation.max():.5e} mm; "
+        f"curvature deviation max {curv['deviation'].max():.5e} 1/mm"
     )
     _emit(clean_report, artifacts, "clean")
 
@@ -144,8 +158,11 @@ def main() -> int:
     _emit(collision_report, artifacts, "collision")
 
     print(f"\nArtifacts written under {artifacts}")
-    print("  The PNGs are the headless fallback: the deviation field colored on the")
-    print("  geometry (clean) and the coinciding non-neighbor pair marked (collision).")
+    print("  The single-panel PNGs are the positional fallback: the deviation field")
+    print("  colored on the geometry (clean) and the non-neighbor pair marked (collision).")
+    print("  The comparison PNGs put positional deviation beside curvature deviation:")
+    print("  the clean pass reads calm on the left and lit at the leading edge on the")
+    print("  right, the same reconstruction. That contrast is the centerpiece slide.")
     print("  The field files are what the live Grasshopper display reads and colors.")
     return 0
 

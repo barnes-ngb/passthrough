@@ -88,16 +88,25 @@ class LoopReport:
         valid pass; the returned (deformed) mesh on a flagged pass.
     node_ids:        one name per displayed vertex, so a flagged node-id pair maps to
         vertex rows for the display.
-    deviation:       the per-vertex scalar, one per vertex, or None on a flagged pass.
+    deviation:       the per-vertex positional scalar, one per vertex, or None on a
+        flagged pass.
     drift:           the max/mean/median summary, or None on a flagged pass.
     constraints:     the constraint results, empty on a flagged pass.
     validity:        the gate result. Always present.
     collision_pairs: flagged non-neighbor node-id pairs, read from the gate.
     folded_faces:    flagged face row indices, read from the gate.
     provenance:      source identity and iteration index, copied from the descriptor.
+    curvature_deviation: the per-sample curvature scalar (|H_recon - H_source|), or
+        None on a flagged pass. A second, distinct deviation field: positional drift
+        is tiny while curvature deviation is large and concentrated at the leading
+        edge. The comparison render draws the two side by side. Sampled on the
+        curvature grid, so it is not one-per-vertex; it pairs with curvature_points.
+    curvature_points: the (M, 3) sample positions the curvature field sits on, or
+        None. One row per curvature_deviation entry.
 
     Lengths are consistent by construction: when deviation is present it has one
-    entry per vertex, asserted here.
+    entry per vertex, and curvature_deviation pairs with curvature_points, asserted
+    here.
     """
 
     vertices: np.ndarray
@@ -110,6 +119,8 @@ class LoopReport:
     collision_pairs: list = field(default_factory=list)
     folded_faces: list = field(default_factory=list)
     provenance: dict[str, Any] = field(default_factory=dict)
+    curvature_deviation: np.ndarray | None = None
+    curvature_points: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         self.vertices = np.asarray(self.vertices, dtype=float)
@@ -124,6 +135,17 @@ class LoopReport:
                 )
         if self.node_ids.shape[0] != self.vertices.shape[0]:
             raise ValueError("node_ids must have one entry per vertex")
+        if self.curvature_deviation is not None:
+            self.curvature_deviation = np.asarray(self.curvature_deviation, dtype=float)
+            if self.curvature_points is None:
+                raise ValueError("curvature_deviation requires curvature_points")
+            self.curvature_points = np.asarray(self.curvature_points, dtype=float)
+            if self.curvature_points.shape[0] != self.curvature_deviation.shape[0]:
+                raise ValueError(
+                    "curvature_points must have one row per curvature_deviation entry "
+                    f"({self.curvature_points.shape[0]} != "
+                    f"{self.curvature_deviation.shape[0]})"
+                )
 
     @property
     def reconstructed(self) -> bool:
@@ -140,13 +162,17 @@ def assemble_report(
     drift: dict[str, float] | None = None,
     constraints: list[ConstraintResult] | None = None,
     provenance: dict[str, Any] | None = None,
+    curvature_deviation: np.ndarray | None = None,
+    curvature_points: np.ndarray | None = None,
 ) -> LoopReport:
     """Gather one loop pass into a report.
 
     display_mesh is the geometry the display shows: the reconstructed mesh on a valid
     pass, the returned mesh on a flagged pass. The flagged regions are read from the
     gate result, not passed in, so they cannot disagree with the validity it carries.
-    node_ids default to vertex order when not supplied.
+    node_ids default to vertex order when not supplied. The curvature deviation field
+    and its sample points are passed for the comparison render; both are absent on a
+    flagged pass.
     """
     n = display_mesh.vertices.shape[0]
     ids = np.arange(n, dtype=int) if node_ids is None else np.asarray(node_ids, dtype=int)
@@ -162,6 +188,8 @@ def assemble_report(
         collision_pairs=collision_pairs,
         folded_faces=folded_faces,
         provenance=dict(provenance) if provenance else {},
+        curvature_deviation=curvature_deviation,
+        curvature_points=curvature_points,
     )
 
 
@@ -209,12 +237,22 @@ def report_to_dict(report: LoopReport) -> dict[str, Any]:
         "collision_pairs": [list(p) for p in report.collision_pairs],
         "folded_faces": list(report.folded_faces),
         "provenance": report.provenance,
+        "curvature_deviation": (
+            None
+            if report.curvature_deviation is None
+            else report.curvature_deviation.tolist()
+        ),
+        "curvature_points": (
+            None if report.curvature_points is None else report.curvature_points.tolist()
+        ),
     }
 
 
 def report_from_dict(obj: dict[str, Any]) -> LoopReport:
     """Inverse of report_to_dict."""
     deviation = obj.get("deviation")
+    curv_dev = obj.get("curvature_deviation")
+    curv_pts = obj.get("curvature_points")
     constraints = [
         ConstraintResult(
             type=c["type"],
@@ -236,6 +274,8 @@ def report_from_dict(obj: dict[str, Any]) -> LoopReport:
         collision_pairs=[tuple(p) for p in obj.get("collision_pairs", [])],
         folded_faces=list(obj.get("folded_faces", [])),
         provenance=dict(obj.get("provenance", {})),
+        curvature_deviation=None if curv_dev is None else np.asarray(curv_dev, dtype=float),
+        curvature_points=None if curv_pts is None else np.asarray(curv_pts, dtype=float),
     )
 
 
@@ -335,14 +375,15 @@ class RenderSpec:
     title: str
 
 
-def build_render_spec(report: LoopReport, title: str | None = None) -> RenderSpec:
-    """Turn a report into a RenderSpec: resolve the flagged node-id pairs and face
-    indices into vertex coordinates the drawing can place directly.
+def _overlay_geometry(
+    report: LoopReport,
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    """Resolve the flagged node-id pairs and face indices into vertex coordinates.
 
     A collision pair (a, b) in node-id space becomes the segment between the two
     vertices those names sit on. A folded face row index becomes the polygon of its
-    vertices. This is the pure step the render gate asserts: the overlay geometry is
-    present and correct without rendering a pixel.
+    vertices. Shared by the single-panel and comparison specs so the overlays cannot
+    diverge between the two render paths.
     """
     verts = report.vertices
     id_to_row = {int(nid): row for row, nid in enumerate(report.node_ids)}
@@ -358,6 +399,21 @@ def build_render_spec(report: LoopReport, title: str | None = None) -> RenderSpe
     for f in report.folded_faces:
         if 0 <= int(f) < report.faces.shape[0]:
             folded_polygons.append(verts[report.faces[int(f)]])
+
+    return collision_segments, folded_polygons
+
+
+def build_render_spec(report: LoopReport, title: str | None = None) -> RenderSpec:
+    """Turn a report into a RenderSpec: resolve the flagged node-id pairs and face
+    indices into vertex coordinates the drawing can place directly.
+
+    A collision pair (a, b) in node-id space becomes the segment between the two
+    vertices those names sit on. A folded face row index becomes the polygon of its
+    vertices. This is the pure step the render gate asserts: the overlay geometry is
+    present and correct without rendering a pixel.
+    """
+    verts = report.vertices
+    collision_segments, folded_polygons = _overlay_geometry(report)
 
     if title is None:
         title = _default_title(report)
@@ -462,6 +518,213 @@ def render(report: LoopReport, path: str | Path, title: str | None = None) -> Pa
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=120, bbox_inches="tight")
+    plt.close(fig)
+    return path
+
+
+# --- the two-panel comparison render --------------------------------------
+
+
+@dataclass
+class PanelSpec:
+    """One panel of the comparison render: the points to color, their scalar, and the
+    panel's own color scale.
+
+    Each panel carries its own (min, max). The two are not flattened onto a shared
+    range: positional drift is tiny while curvature deviation is large, and a shared
+    scale would hide the contrast the comparison exists to show.
+
+    points:    the (N, 3) positions to color.
+    deviation: the per-point scalar, or None on a flagged pass.
+    scale:     (min, max) of the scalar, this panel's own color range, or None.
+    label:     the colorbar label naming the quantity and its units.
+    """
+
+    points: np.ndarray
+    deviation: np.ndarray | None
+    scale: tuple[float, float] | None
+    label: str
+
+
+@dataclass
+class ComparisonSpec:
+    """The two-panel render's pure inputs: positional deviation beside curvature
+    deviation for the same reconstruction, plus the flagged overlays.
+
+    positional:    left panel, positional deviation over the reconstructed mesh.
+    curvature:     right panel, curvature deviation over the curvature sample points.
+    faces:         the displayed mesh faces, for the folded-face overlay.
+    collision_segments, folded_polygons: the flagged overlays, as in RenderSpec.
+    drift:         the drift summary, for the title.
+    title:         the rendered title, carrying the numbers so the image stands alone.
+    reconstructed: True on a valid pass (both panels carry data); False on a flagged
+                   pass (no panels of data: a single gray-with-flag view is drawn).
+    """
+
+    positional: PanelSpec
+    curvature: PanelSpec
+    faces: np.ndarray
+    collision_segments: list[np.ndarray]
+    folded_polygons: list[np.ndarray]
+    drift: dict[str, float] | None
+    title: str
+    reconstructed: bool
+
+
+def _comparison_title(report: LoopReport) -> str:
+    """A title carrying both panels' headline numbers so the image stands on its own."""
+    iteration = report.provenance.get("iteration", "?")
+    if report.reconstructed and report.drift is not None:
+        pos_max = report.drift["max"]
+        body = f"positional drift max {pos_max:.3e} mm"
+        if report.curvature_deviation is not None:
+            cur_max = float(report.curvature_deviation.max())
+            body += f"  |  curvature deviation max {cur_max:.3e} 1/mm"
+        return f"positional vs curvature (iter {iteration}): {body}"
+    signals = ", ".join(report.validity.signals) or "flagged"
+    return f"validity gate stopped (iter {iteration}): {signals}; no reconstruction"
+
+
+def build_comparison_spec(report: LoopReport, title: str | None = None) -> ComparisonSpec:
+    """Turn a report into a ComparisonSpec: the positional panel beside the curvature
+    panel, each with its own color scale, and the flagged overlays resolved to
+    coordinates.
+
+    The two panels are distinct quantities, not one field drawn twice. The positional
+    panel is the per-vertex drift on the reconstructed mesh; the curvature panel is the
+    per-sample |H_recon - H_source| field on the curvature sample points, sourced from
+    the curvature check. Each panel's scale spans its own values, so the render does
+    not flatten one onto the other's range. This is the pure step the gate asserts.
+    """
+    pos_dev = report.deviation
+    pos_scale = (
+        None if pos_dev is None else (float(pos_dev.min()), float(pos_dev.max()))
+    )
+    positional = PanelSpec(
+        points=report.vertices,
+        deviation=pos_dev,
+        scale=pos_scale,
+        label="positional deviation (mm)",
+    )
+
+    cur_dev = report.curvature_deviation
+    cur_pts = report.curvature_points if cur_dev is not None else report.vertices
+    cur_scale = (
+        None if cur_dev is None else (float(cur_dev.min()), float(cur_dev.max()))
+    )
+    curvature = PanelSpec(
+        points=cur_pts,
+        deviation=cur_dev,
+        scale=cur_scale,
+        label="curvature deviation (1/mm)",
+    )
+
+    collision_segments, folded_polygons = _overlay_geometry(report)
+
+    if title is None:
+        title = _comparison_title(report)
+
+    return ComparisonSpec(
+        positional=positional,
+        curvature=curvature,
+        faces=report.faces,
+        collision_segments=collision_segments,
+        folded_polygons=folded_polygons,
+        drift=report.drift,
+        title=title,
+        reconstructed=report.reconstructed,
+    )
+
+
+def render_comparison(
+    report: LoopReport, path: str | Path, title: str | None = None
+) -> Path:
+    """Render positional deviation beside curvature deviation and save a PNG.
+
+    Two panels of the same reconstruction: positional drift on the left, curvature
+    deviation on the right. Each panel uses its own color scale, since the magnitudes
+    differ by orders of magnitude and a shared scale would flatten one onto the other.
+    The left panel reads calm; the right panel lights up at the leading edge. That
+    contrast is the argument.
+
+    On a flagged pass there is no reconstruction and no deviation fields, so this draws
+    a single gray-with-flag view, not two empty panels: the same fallback the
+    single-panel render shows.
+
+    The Agg backend is set explicitly so nothing opens a window: this runs headless.
+    """
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+    spec = build_comparison_spec(report, title=title)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    def label_axes(ax) -> None:
+        ax.set_xlabel("x (chord)")
+        ax.set_ylabel("y (span)")
+        ax.set_zlabel("z (thickness)")
+
+    def draw_overlays(ax) -> None:
+        if spec.folded_polygons:
+            poly = Poly3DCollection(
+                spec.folded_polygons,
+                facecolors="crimson",
+                edgecolors="darkred",
+                alpha=0.7,
+            )
+            ax.add_collection3d(poly)
+        for seg in spec.collision_segments:
+            ax.plot(
+                seg[:, 0],
+                seg[:, 1],
+                seg[:, 2],
+                color="crimson",
+                linewidth=2.0,
+                marker="o",
+                markersize=8,
+            )
+
+    if not spec.reconstructed:
+        # No reconstruction ran: one gray-with-flag view, not two empty panels.
+        fig = plt.figure(figsize=(9, 6))
+        ax = fig.add_subplot(111, projection="3d")
+        pts = spec.positional.points
+        ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], color="0.7", s=10, depthshade=False)
+        draw_overlays(ax)
+        ax.set_title(spec.title)
+        label_axes(ax)
+        fig.savefig(path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
+        return path
+
+    fig = plt.figure(figsize=(16, 6))
+    panels = [(spec.positional, "viridis"), (spec.curvature, "magma")]
+    for col, (panel, cmap) in enumerate(panels, start=1):
+        ax = fig.add_subplot(1, 2, col, projection="3d")
+        pts = panel.points
+        vmin, vmax = panel.scale
+        sc = ax.scatter(
+            pts[:, 0],
+            pts[:, 1],
+            pts[:, 2],
+            c=panel.deviation,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            s=14,
+            depthshade=False,
+        )
+        cbar = fig.colorbar(sc, ax=ax, shrink=0.6, pad=0.1)
+        cbar.set_label(panel.label)
+        ax.set_title(panel.label.split(" (")[0])
+        label_axes(ax)
+
+    fig.suptitle(spec.title)
     fig.savefig(path, dpi=120, bbox_inches="tight")
     plt.close(fig)
     return path
