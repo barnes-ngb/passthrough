@@ -229,7 +229,7 @@ These are the addendum gates for the two-panel comparison render.
 
 - The coloring lives in Grasshopper, not here. This phase emits the file; the live
   display reads it. A native C# Grasshopper component that renders the same file is
-  the Phase 6 earned stretch, not built here.
+  the Phase 7 earned stretch, not built here.
 - The static render is matplotlib, not Rhino. It is the reviewable, portable form of
   the picture and the demo fallback. It is not a second rendering engine for the
   product; it stands in for the live display when there is no desktop.

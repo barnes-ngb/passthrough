@@ -111,7 +111,7 @@ Keep both interfaces narrow and stable. The value of the project is that each bl
 - No Docker. No admin rights on the machine. Do not propose anything requiring either.
 - Python is the engine. numpy and scipy for math. rhino3dm for NURBS and mesh data and file I/O.
 - Rhino and Grasshopper are display only, fed from files. Headless Python is where correctness is proven.
-- A C# Grasshopper plugin is an earned stretch (Phase 6), not a dependency.
+- A C# Grasshopper plugin is an earned stretch (Phase 7), not a dependency.
 
 ## Hard do-not list
 
