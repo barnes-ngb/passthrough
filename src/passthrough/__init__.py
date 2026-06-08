@@ -21,6 +21,15 @@ from passthrough.solver_stub import (
     pressure_bump,
     surface_normals,
 )
+from passthrough.run import (
+    PayloadError,
+    read_incoming_payload,
+    validate_incoming,
+    run_loop,
+    run_roundtrip,
+    write_status,
+    emit_synthetic_payload,
+)
 
 __all__ = [
     "Mesh",
@@ -46,4 +55,11 @@ __all__ = [
     "displacement",
     "pressure_bump",
     "surface_normals",
+    "PayloadError",
+    "read_incoming_payload",
+    "validate_incoming",
+    "run_loop",
+    "run_roundtrip",
+    "write_status",
+    "emit_synthetic_payload",
 ]
