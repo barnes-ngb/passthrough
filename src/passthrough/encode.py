@@ -9,7 +9,7 @@ Honesty category 1: this is instrument logic, authored here.
 
 Named boundary surfaced in this module:
     The exchange is files, not a service. A live service, if ever wanted, is a
-    wrapper around this same file contract (PLAN.md Phase 6), not a redesign.
+    wrapper around this same file contract (PLAN.md Phase 8), not a redesign.
 
 Encoding is lossless within floating-point tolerance: decode(encode(x)) returns
 the same arrays. Python's json writes the full repr of each double, which

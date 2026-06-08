@@ -112,9 +112,26 @@ Category: 1.
 
 ---
 
-## Phase 6 — C# Grasshopper plugin (earned stretch)
+## Phase 6 — The reverse-problem boundary (exploratory)
 
-Goal: a native GH component that renders the deviation field, demonstrating C# on their stack. Only after Phases 0 through 5 are green and time remains.
+Goal: test the claim that carrying identity is what makes reconstruction well-posed, instead of asserting it. This phase is an experiment, not a feature. It removes carried information rung by rung and measures where reconstruction stops being well-posed. A "this does not converge" or "this is ill-posed" result is a valid finding, not a defect.
+
+This phase is now the priority over the C# plugin, which moves to Phase 7. The experiment tests whether the project is telling the truth about the reverse problem; the plugin is packaging that cannot fail in an interesting way.
+
+Deliverables:
+- `spec-06-boundary.md`, written at the start of this phase, framing it as exploratory.
+- `boundary.py`: the four-rung ladder. Each rung removes carried information and reconstructs (or reports a structured non-convergence), sharing the same wing ground truth and the same drift, curvature, and constraint meters. Rung 1 full carry (current behavior); rung 2 estimated UV (chord-length on the carried grid); rung 3 no correspondence (shuffled point cloud, PCA-plane parameterization); rung 4 changed topology (remesh, caught by the validity gate). The meters are reused unchanged; only the parameterization and correspondence are stripped.
+- `scripts/run_phase6.py`: runs the full ladder, prints the summary table, writes the table and the optional drift-versus-rung plot to `artifacts/`.
+
+Gate: the ladder runs end to end and produces a comparable result or an honest structured non-convergence for every rung, with nothing crashing on the ill-posed or blocked rungs. Rung 1 reproduces the Phase 1 honest-fit drift on the same grid and reconstructor, asserted to floating-point tolerance. Rung 2 drift exceeds rung 1 drift. Rungs 3 and 4 are asserted only to be flagged or reported (ill-posed, blocked), not held to a specific number. Each rung is reproducible given a fixed seed for the shuffle.
+
+Category: 1 for the measurement (it reuses the category 1 meters and the category 2 classical reconstructor unchanged). Exploratory in intent: a negative result is the intended kind of result. The learned reconstructor stays category 3 and unbuilt.
+
+---
+
+## Phase 7 — C# Grasshopper plugin (earned stretch)
+
+Goal: a native GH component that renders the deviation field, demonstrating C# on their stack. An optional stretch, lower priority than the Phase 6 experiment. Only after the core phases are green and time remains.
 
 Deliverables:
 - A GHA component that reads the same report file and renders the colored deviation mesh natively.
@@ -123,11 +140,11 @@ Gate: the component loads in Grasshopper and renders the field matching the file
 
 Category: 1.
 
-Note: this is packaging, not the spike. It cannot fail in an interesting way, so it earns its place only after the core is proven. Do not start it before Phase 5 is approved.
+Note: this is packaging, not the spike. It cannot fail in an interesting way, so it earns its place only after the core is proven and the Phase 6 experiment is done.
 
 ---
 
-## Phase 7 — Live service (narration only, probably never)
+## Phase 8 — Live service (narration only, probably never)
 
 If a running service is ever wanted, it is a deployment wrapper around the existing file contract, not a rebuild. Out of scope for the build. Hold it as a sentence in the talk about deployment options, not as code.
 

@@ -4,7 +4,7 @@ Scope: the protocol that carries geometry across a process boundary and back. Th
 
 ## Principle
 
-The exchange is a file contract, not a server. Two processes share a directory and a schema. The geometry side writes a mesh and a descriptor; the solver side reads it, returns a modified mesh; the geometry side reads that back. The contract is visible on disk, which makes it testable and honest. A live service, if ever wanted, is a wrapper around this same contract (PLAN.md Phase 6), not a different design.
+The exchange is a file contract, not a server. Two processes share a directory and a schema. The geometry side writes a mesh and a descriptor; the solver side reads it, returns a modified mesh; the geometry side reads that back. The contract is visible on disk, which makes it testable and honest. A live service, if ever wanted, is a wrapper around this same contract (PLAN.md Phase 8), not a different design.
 
 The far side is a black box behind the contract. It does not need to be a different application to prove tool-agnosticism. It needs to be a different process behind a defined format. It stays Python.
 
