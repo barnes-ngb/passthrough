@@ -1,0 +1,10 @@
+{
+  "status": "done",
+  "flagged": true,
+  "signals": [
+    "collision"
+  ],
+  "result": "result.json",
+  "field": "field.json",
+  "drift_max": null
+}

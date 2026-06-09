@@ -4,3 +4,12 @@ C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\n
 C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.AssemblyInfo.cs
 C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.csproj.CoreCompileInputs.cache
 C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.sourcelink.json
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\bin\Release\net7.0-windows\PassthroughGh.deps.json
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\bin\Release\net7.0-windows\PassthroughGh.runtimeconfig.json
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\bin\Release\net7.0-windows\PassthroughGh.dll
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\bin\Release\net7.0-windows\PassthroughGh.pdb
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.dll
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\refint\PassthroughGh.dll
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.pdb
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.genruntimeconfig.cache
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\ref\PassthroughGh.dll
