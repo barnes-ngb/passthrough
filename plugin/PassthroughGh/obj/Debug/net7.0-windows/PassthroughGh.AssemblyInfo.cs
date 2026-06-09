@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PassthroughGh")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("0.1.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+37786c7f8f1f2a8554c12e36c83fcc340b6945b3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.1.0+e8160e036a5921a24c30b3fc58bfc8e0fef1f1dd")]
 [assembly: System.Reflection.AssemblyProductAttribute("PassthroughGh")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PassthroughGh")]
 [assembly: System.Reflection.AssemblyVersionAttribute("0.1.0.0")]
