@@ -14,6 +14,7 @@
 
   <PropertyGroup>
     <TargetFramework>net7.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>PassthroughGh</RootNamespace>
     <AssemblyName>PassthroughGh</AssemblyName>
     <Version>0.1.0</Version>

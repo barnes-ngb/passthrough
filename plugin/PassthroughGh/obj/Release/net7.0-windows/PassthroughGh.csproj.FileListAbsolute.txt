@@ -1,0 +1,6 @@
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.csproj.AssemblyReference.cache
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.AssemblyInfoInputs.cache
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.AssemblyInfo.cs
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.csproj.CoreCompileInputs.cache
+C:\Users\nbarnes\Documents\GitHub\passthrough\plugin\PassthroughGh\obj\Release\net7.0-windows\PassthroughGh.sourcelink.json

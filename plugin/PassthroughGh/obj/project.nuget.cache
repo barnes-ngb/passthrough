@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "1RgQmDcrM+A=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\nbarnes\\Documents\\GitHub\\passthrough\\plugin\\PassthroughGh\\PassthroughGh.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\nbarnes\\.nuget\\packages\\grasshopper\\8.0.23304.9001\\grasshopper.8.0.23304.9001.nupkg.sha512",
+    "C:\\Users\\nbarnes\\.nuget\\packages\\rhinocommon\\8.0.23304.9001\\rhinocommon.8.0.23304.9001.nupkg.sha512",
+    "C:\\Users\\nbarnes\\.nuget\\packages\\microsoft.netcore.app.ref\\7.0.20\\microsoft.netcore.app.ref.7.0.20.nupkg.sha512",
+    "C:\\Users\\nbarnes\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\7.0.20\\microsoft.windowsdesktop.app.ref.7.0.20.nupkg.sha512",
+    "C:\\Users\\nbarnes\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\7.0.20\\microsoft.aspnetcore.app.ref.7.0.20.nupkg.sha512"
+  ],
+  "logs": []
+}
