@@ -29,9 +29,11 @@
   <ItemGroup>
     <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
   </ItemGroup>
+  <!-- Component icons, embedded into the assembly. Manifest names are
+       PassthroughGh.Resources.<filename>, matching the RootNamespace above. -->
   <ItemGroup>
-  <EmbeddedResource Include="Resources\*.png" />
-</ItemGroup>
+    <EmbeddedResource Include="Resources\*.png" />
+  </ItemGroup>
 
   <!-- Post-build rename: the build emits PassthroughGh.dll; Grasshopper loads .gha. -->
   <Target Name="BuildGha" AfterTargets="Build">

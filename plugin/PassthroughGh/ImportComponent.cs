@@ -55,7 +55,7 @@ namespace PassthroughGh
 
         public override Guid ComponentGuid => new Guid("6c7b4012-6953-4e0a-9c5d-2d3e4f506172");
         public override GH_Exposure Exposure => GH_Exposure.primary;
-        protected override System.Drawing.Bitmap Icon => null!;
+        protected override System.Drawing.Bitmap Icon => IconLoader.Load("passthrough_import_24.png");
 
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
