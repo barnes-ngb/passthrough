@@ -56,7 +56,7 @@ from passthrough.encode import (
     write_payload,
 )
 from passthrough.geometry import Mesh, build_wing_surface, tessellate
-from passthrough.reconstruct import ClassicalReconstructor
+from passthrough.reconstruct import ClassicalReconstructor, nurbs_surface_to_dict
 from passthrough.report import (
     LoopReport,
     assemble_report,
@@ -264,6 +264,11 @@ def run_loop(
     drift = hausdorff(returned.vertices, remesh.vertices)
     deviation = deviation_field(remesh.vertices, returned.vertices)
 
+    # Carry the reconstructed analytic surface across the contract in portable form,
+    # so the bench rebuilds it as a Rhino surface beside the original. This is the
+    # reconstructor's own output (recon), extracted as data; no new geometry is made.
+    surface = nurbs_surface_to_dict(recon)
+
     # Curvature and the constraints compare against the source surface. The run holds
     # only meshes, so the source surface is reconstructed from the incoming mesh with
     # the same bounded fit. This is the parameterization-gap boundary, applied to the
@@ -279,6 +284,7 @@ def run_loop(
         drift=drift,
         constraints=constraints,
         provenance=descriptor.provenance,
+        surface=surface,
         curvature_deviation=curv["deviation"],
         curvature_points=curv["points"],
     )
@@ -310,17 +316,28 @@ def _status_payload(report: LoopReport) -> dict[str, Any]:
     """The `done` status body for a completed run.
 
     Carries whether the pass was flagged, the signals raised, the relative paths to
-    the result and field files, and the headline drift max. A flagged pass has no
-    reconstruction, so drift_max is null and the signals name the problem.
+    the result and field files, and the headline evaluation (drift max and curvature
+    max). On a reconstructed pass the surface lives in the result file, so `surface`
+    names that file for the import side to read the analytic surface from. A flagged
+    pass has no reconstruction, so drift_max, curvature_max, and surface are all null
+    and the signals name the problem.
     """
     flagged = not report.validity.valid
+    drift_max = None if report.drift is None else float(report.drift["max"])
+    curvature_max = (
+        None
+        if report.curvature_deviation is None
+        else float(report.curvature_deviation.max())
+    )
     return {
         "status": "done",
         "flagged": flagged,
         "signals": list(report.validity.signals),
         "result": RESULT_NAME,
         "field": FIELD_NAME,
-        "drift_max": None if report.drift is None else float(report.drift["max"]),
+        "surface": None if report.surface is None else RESULT_NAME,
+        "drift_max": drift_max,
+        "curvature_max": curvature_max,
     }
 
 
@@ -377,6 +394,8 @@ def run_roundtrip(
         "flagged": status["flagged"],
         "signals": status["signals"],
         "drift_max": status["drift_max"],
+        "curvature_max": status["curvature_max"],
+        "surface_written": report.surface is not None,
         "result_path": result_path,
         "field_path": field_path,
         "status_path": written,

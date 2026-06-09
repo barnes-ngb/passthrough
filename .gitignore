@@ -7,9 +7,9 @@ exchange/out/*.json
 exchange/in/*.json
 artifacts/
 
-
-
-# C# / Grasshopper plugin build outputs
+# C# Grasshopper plugin build outputs (Phase 7b). None belong in the repo: the
+# .gha is produced by the post-build copy, bin/ and obj/ by the build, .vs/ by
+# Visual Studio. Nathan builds these on Windows; the source is what we track.
 plugin/**/bin/
 plugin/**/obj/
 plugin/**/*.gha

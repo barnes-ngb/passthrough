@@ -17,7 +17,12 @@ namespace PassthroughGh
         {
             Assembly asm = typeof(IconLoader).Assembly;
             using var stream = asm.GetManifestResourceStream("PassthroughGh.Resources." + fileName);
-            return new Bitmap(stream);
+            // A missing icon must never take down a working component. When the embedded
+            // resource is absent the stream is null; return null so Grasshopper falls back
+            // to its default icon instead of the Bitmap constructor throwing on a null
+            // stream. See plugin/README.md for how to list the embedded resource names and
+            // confirm whether the PNGs were embedded at build time.
+            return stream == null ? null : new Bitmap(stream);
         }
     }
 }
