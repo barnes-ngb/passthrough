@@ -65,6 +65,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"  drift max: {summary['drift_max']:.5e}")
     else:
         print("  drift max: none (no reconstruction on a flagged pass)")
+    if summary["curvature_max"] is not None:
+        print(f"  curvature max: {summary['curvature_max']:.5e}")
+    else:
+        print("  curvature max: none (no reconstruction on a flagged pass)")
+    if summary["surface_written"]:
+        print("  surface: written to result.json (passthrough.surface.v1), the")
+        print("           reconstructed analytic surface for the bench to rebuild")
+    else:
+        print("  surface: none (no reconstruction on a flagged pass)")
     print("  wrote:")
     for p in summary["wrote"]:
         print(f"    {p}")

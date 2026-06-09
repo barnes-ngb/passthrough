@@ -96,6 +96,11 @@ class LoopReport:
     collision_pairs: flagged non-neighbor node-id pairs, read from the gate.
     folded_faces:    flagged face row indices, read from the gate.
     provenance:      source identity and iteration index, copied from the descriptor.
+    surface:         the reconstructed analytic surface in the spec-07-surface form
+        (control net, weights, degrees, full knot vectors), or None on a flagged pass.
+        This is what closes the round trip: the bench rebuilds it as a Rhino surface
+        and sets it beside the original. It is data, not geometry math: the fit
+        happened in the reconstructor, and this carries its output verbatim.
     curvature_deviation: the per-sample curvature scalar (|H_recon - H_source|), or
         None on a flagged pass. A second, distinct deviation field: positional drift
         is tiny while curvature deviation is large and concentrated at the leading
@@ -119,6 +124,7 @@ class LoopReport:
     collision_pairs: list = field(default_factory=list)
     folded_faces: list = field(default_factory=list)
     provenance: dict[str, Any] = field(default_factory=dict)
+    surface: dict[str, Any] | None = None
     curvature_deviation: np.ndarray | None = None
     curvature_points: np.ndarray | None = None
 
@@ -162,6 +168,7 @@ def assemble_report(
     drift: dict[str, float] | None = None,
     constraints: list[ConstraintResult] | None = None,
     provenance: dict[str, Any] | None = None,
+    surface: dict[str, Any] | None = None,
     curvature_deviation: np.ndarray | None = None,
     curvature_points: np.ndarray | None = None,
 ) -> LoopReport:
@@ -188,6 +195,7 @@ def assemble_report(
         collision_pairs=collision_pairs,
         folded_faces=folded_faces,
         provenance=dict(provenance) if provenance else {},
+        surface=surface,
         curvature_deviation=curvature_deviation,
         curvature_points=curvature_points,
     )
@@ -224,14 +232,39 @@ def _validity_from_dict(obj: dict[str, Any]) -> GateResult:
     )
 
 
+def _evaluation(report: LoopReport) -> dict[str, Any]:
+    """The headline evaluation, surfaced at the top of the result so the bench reads
+    the numbers without recomputing or parsing the full fields.
+
+    Nothing new is measured here. The positional drift summary is driftgauge's, copied
+    through. The curvature residual is the maximum of the curvature deviation field the
+    constraint check already produced. Both are None on a flagged pass, where no
+    reconstruction ran. These are the two numbers the round trip is judged on: how far
+    the reconstruction drifted in position, and where its curvature broke.
+    """
+    curvature_max = (
+        None
+        if report.curvature_deviation is None
+        else float(report.curvature_deviation.max())
+    )
+    return {"drift": report.drift, "curvature_max": curvature_max}
+
+
 def report_to_dict(report: LoopReport) -> dict[str, Any]:
-    """The report as a plain JSON-serializable dict. The inverse is report_from_dict."""
+    """The report as a plain JSON-serializable dict. The inverse is report_from_dict.
+
+    surface and evaluation are present on a reconstructed pass and absent (null) on a
+    flagged one: a flagged pass has no analytic reconstruction to carry and no drift or
+    curvature to headline.
+    """
     return {
         "vertices": report.vertices.tolist(),
         "faces": report.faces.tolist(),
         "node_ids": report.node_ids.tolist(),
         "deviation": None if report.deviation is None else report.deviation.tolist(),
         "drift": report.drift,
+        "evaluation": _evaluation(report),
+        "surface": report.surface,
         "constraints": [asdict(c) for c in report.constraints],
         "validity": _validity_to_dict(report.validity),
         "collision_pairs": [list(p) for p in report.collision_pairs],
@@ -274,6 +307,7 @@ def report_from_dict(obj: dict[str, Any]) -> LoopReport:
         collision_pairs=[tuple(p) for p in obj.get("collision_pairs", [])],
         folded_faces=list(obj.get("folded_faces", [])),
         provenance=dict(obj.get("provenance", {})),
+        surface=obj.get("surface"),
         curvature_deviation=None if curv_dev is None else np.asarray(curv_dev, dtype=float),
         curvature_points=None if curv_pts is None else np.asarray(curv_pts, dtype=float),
     )

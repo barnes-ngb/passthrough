@@ -213,6 +213,82 @@ def _make_surface(
     return ns
 
 
+# --- portable analytic form (spec-07-surface) -----------------------------
+
+SURFACE_FORMAT = "passthrough.surface.v1"
+
+
+def nurbs_surface_to_dict(ns: r3.NurbsSurface) -> dict:
+    """Extract a NurbsSurface into the portable analytic form of spec-07-surface.
+
+    The schema (passthrough.surface.v1) is the control net, the weights, the two
+    degrees, and the two full knot vectors. That is enough to rebuild the surface
+    verbatim, in rhino3dm here or in RhinoCommon on the Grasshopper bench, with no
+    fitting and no geometry math. The analytic surface is reconstructed once, in
+    Python (ClassicalReconstructor), and carried as data so the bench rebuilds it
+    rather than recomputing it.
+
+    Knot convention: this writes the full clamped knot vector (length
+    n_ctrl + degree + 1), the same convention clamped_uniform_knots uses, so a
+    reader can check the lengths without knowing the library. rhino3dm and
+    RhinoCommon both store the knot list with the outermost knot at each end
+    dropped, so the first and last entries are restored here; a rebuilder drops them
+    again, exactly as _make_surface does.
+
+    Control points are euclidean (x, y, z), not weighted homogeneous coordinates.
+    The classical reconstructor is non-rational, so every weight is 1.0; the weights
+    grid is carried explicitly anyway so a rational fit could ride the same contract
+    without a schema change.
+    """
+    pts = ns.Points
+    n_u, n_v = pts.CountU, pts.CountV
+    degree_u, degree_v = ns.OrderU - 1, ns.OrderV - 1
+
+    control = [[[0.0, 0.0, 0.0] for _ in range(n_v)] for _ in range(n_u)]
+    weights = [[1.0 for _ in range(n_v)] for _ in range(n_u)]
+    for i in range(n_u):
+        for j in range(n_v):
+            p = pts[i, j]
+            control[i][j] = [float(p.X), float(p.Y), float(p.Z)]
+            weights[i][j] = float(p.W)
+
+    def full_knots(klist) -> list[float]:
+        # rhino3dm drops the outermost knot at each end; restore them to the full
+        # clamped vector of length n_ctrl + degree + 1.
+        vals = [float(klist[i]) for i in range(len(klist))]
+        return [vals[0]] + vals + [vals[-1]]
+
+    return {
+        "format": SURFACE_FORMAT,
+        "degree_u": int(degree_u),
+        "degree_v": int(degree_v),
+        "count_u": int(n_u),
+        "count_v": int(n_v),
+        "control_points": control,
+        "weights": weights,
+        "knots_u": full_knots(ns.KnotsU),
+        "knots_v": full_knots(ns.KnotsV),
+    }
+
+
+def nurbs_surface_from_dict(obj: dict) -> r3.NurbsSurface:
+    """Rebuild a NurbsSurface from the spec-07-surface form. The inverse of
+    nurbs_surface_to_dict.
+
+    This is the verbatim rebuild the C# Import component performs: it takes the
+    carried control net, degrees, and full knot vectors and reconstructs the surface
+    with no fitting. Provided here so the Python tests can prove the carried data is
+    sufficient, the same path the bench follows in RhinoCommon. Weights are 1
+    (the v1 surface is non-rational), so _make_surface is reused directly.
+    """
+    ctrl = np.asarray(obj["control_points"], dtype=float)
+    knots_u = np.asarray(obj["knots_u"], dtype=float)
+    knots_v = np.asarray(obj["knots_v"], dtype=float)
+    return _make_surface(
+        ctrl, int(obj["degree_u"]), int(obj["degree_v"]), knots_u, knots_v
+    )
+
+
 # --- The seam: protocol and implementations -------------------------------
 
 

@@ -22,9 +22,16 @@ namespace PassthroughGh
     ///   done               -> resolve the field path against the folder, read it, build
     ///                         the mesh, color vertices by deviation through a viridis
     ///                         ramp, surface the collision pairs as points and the folded
-    ///                         faces as indices. On a flagged-but-done pass (deviation
-    ///                         empty) the mesh is neutral gray and the flags still show,
-    ///                         mirroring the static render's fallback.
+    ///                         faces as indices. When the marker names a surface source,
+    ///                         read the result's surface block and rebuild the
+    ///                         reconstructed NurbsSurface so it sits beside the original.
+    ///                         On a flagged-but-done pass (deviation empty) the mesh is
+    ///                         neutral gray, the surface is null, and the flags still
+    ///                         show, mirroring the static render's fallback.
+    ///
+    /// Building the surface is construction, not computation: the analytic surface was
+    /// fit in Python and is rebuilt here verbatim from its control net, weights, degrees,
+    /// and knots (spec-07-surface). No geometry math runs in C#.
     ///
     /// The results are cached so they persist across the button's true/false pulses: a
     /// Pull edge re-reads from disk, every solve re-emits the cached outputs.
@@ -34,10 +41,12 @@ namespace PassthroughGh
         private bool _prevPull;
 
         private Mesh? _mesh;
+        private NurbsSurface? _surface;
         private Interval _range = Interval.Unset;
         private List<Point3d> _points = new();
         private List<int> _folded = new();
         private double _drift = double.NaN;
+        private double _curvature = double.NaN;
         private string _status = "idle";
 
         private static readonly JsonSerializerOptions JsonOpts = new()
@@ -72,6 +81,10 @@ namespace PassthroughGh
             pManager.AddMeshParameter("Mesh", "M",
                 "The returned mesh, colored by deviation, or gray on a flagged pass.",
                 GH_ParamAccess.item);
+            pManager.AddSurfaceParameter("Surface", "Srf",
+                "The reconstructed analytic surface, rebuilt from the result's surface " +
+                "block, to set beside the original. Null on a flagged pass.",
+                GH_ParamAccess.item);
             pManager.AddIntervalParameter("Range", "R",
                 "The deviation range (min, max) from the field, for a stable color scale.",
                 GH_ParamAccess.item);
@@ -82,7 +95,12 @@ namespace PassthroughGh
                 "The row indices of flagged folded faces.",
                 GH_ParamAccess.list);
             pManager.AddNumberParameter("DriftMax", "D",
-                "The headline drift max from status.json, or none on a flagged pass.",
+                "The headline positional drift max from status.json, or none on a " +
+                "flagged pass.",
+                GH_ParamAccess.item);
+            pManager.AddNumberParameter("CurvatureMax", "K",
+                "The headline curvature residual max from status.json, or none on a " +
+                "flagged pass.",
                 GH_ParamAccess.item);
             pManager.AddTextParameter("Status", "S",
                 "The status text: not ready, pending, failed with reason, or done.",
@@ -105,21 +123,25 @@ namespace PassthroughGh
             _prevPull = pull;
 
             da.SetData(0, _mesh);
-            if (_range.IsValid) da.SetData(1, _range);
-            da.SetDataList(2, _points);
-            da.SetDataList(3, _folded);
-            if (!double.IsNaN(_drift)) da.SetData(4, _drift);
-            da.SetData(5, _status);
+            da.SetData(1, _surface);
+            if (_range.IsValid) da.SetData(2, _range);
+            da.SetDataList(3, _points);
+            da.SetDataList(4, _folded);
+            if (!double.IsNaN(_drift)) da.SetData(5, _drift);
+            if (!double.IsNaN(_curvature)) da.SetData(6, _curvature);
+            da.SetData(7, _status);
         }
 
         private void ReadReturn(string folder)
         {
             // Reset the cache for a fresh pull.
             _mesh = null;
+            _surface = null;
             _range = Interval.Unset;
             _points = new List<Point3d>();
             _folded = new List<int>();
             _drift = double.NaN;
+            _curvature = double.NaN;
 
             if (string.IsNullOrWhiteSpace(folder))
             {
@@ -189,8 +211,10 @@ namespace PassthroughGh
 
             BuildMesh(fd);
             SurfaceFlags(fd);
+            ReadSurface(folder, st);
 
             _drift = st.DriftMax ?? double.NaN;
+            _curvature = st.CurvatureMax ?? double.NaN;
             bool flagged = st.Flagged ?? false;
             string flag = flagged ? "flagged" : "clean";
             string signals =
@@ -283,6 +307,65 @@ namespace PassthroughGh
             }
         }
 
+        private void ReadSurface(string folder, StatusDto st)
+        {
+            // On a flagged pass the marker's surface key is null and there is nothing to
+            // rebuild: the surface output stays null and the gray-mesh-with-flags behavior
+            // is unchanged. On a clean pass the marker names the file holding the surface
+            // block (the result file), resolved against the return folder like the field.
+            if (string.IsNullOrEmpty(st.Surface)) return;
+
+            string surfacePath = Path.Combine(folder, st.Surface);
+            if (!File.Exists(surfacePath)) return;
+
+            try
+            {
+                var res = JsonSerializer.Deserialize<ResultDto>(
+                    File.ReadAllText(surfacePath), JsonOpts);
+                if (res?.Surface is { ControlPoints: { } } sdto)
+                {
+                    BuildSurface(sdto);
+                }
+            }
+            catch
+            {
+                // A surface that will not parse is not fatal: the mesh and the numbers
+                // still show. Leave the surface null, the same as a flagged pass.
+            }
+        }
+
+        private void BuildSurface(SurfaceDto s)
+        {
+            if (s.ControlPoints is null || s.KnotsU is null || s.KnotsV is null) return;
+
+            int cu = s.CountU, cv = s.CountV;
+            int du = s.DegreeU, dv = s.DegreeV;
+
+            // No geometry math: this is verbatim construction from the carried analytic
+            // form (spec-07-surface). The fit happened in Python; this rebuilds the same
+            // NurbsSurface so it can sit beside the original and be measured.
+            var ns = NurbsSurface.Create(3, true, du + 1, dv + 1, cu, cv);
+            if (ns is null) return;
+
+            for (int i = 0; i < cu; i++)
+            {
+                for (int j = 0; j < cv; j++)
+                {
+                    double[] p = s.ControlPoints[i][j];
+                    double w = (s.Weights is { } ws) ? ws[i][j] : 1.0;
+                    ns.Points.SetPoint(i, j, p[0], p[1], p[2], w);
+                }
+            }
+
+            // The block carries the full clamped knot vector (length count + degree + 1).
+            // RhinoCommon's knot list omits the outermost knot at each end, so the first
+            // and last entries are dropped here, the same conversion _make_surface does.
+            for (int k = 1; k < s.KnotsU.Length - 1; k++) ns.KnotsU[k - 1] = s.KnotsU[k];
+            for (int k = 1; k < s.KnotsV.Length - 1; k++) ns.KnotsV[k - 1] = s.KnotsV[k];
+
+            if (ns.IsValid) _surface = ns;
+        }
+
         // --- DTOs for the status marker and the field file ---------------------
 
         private sealed class StatusDto
@@ -292,8 +375,32 @@ namespace PassthroughGh
             [JsonPropertyName("signals")] public string[]? Signals { get; set; }
             [JsonPropertyName("result")] public string? Result { get; set; }
             [JsonPropertyName("field")] public string? Field { get; set; }
+            [JsonPropertyName("surface")] public string? Surface { get; set; }
             [JsonPropertyName("drift_max")] public double? DriftMax { get; set; }
+            [JsonPropertyName("curvature_max")] public double? CurvatureMax { get; set; }
             [JsonPropertyName("reason")] public string? Reason { get; set; }
+        }
+
+        // The result file, read only for its surface block. Everything else the import
+        // side needs (mesh, deviation, flags, headline numbers) is in the field file and
+        // the status marker; the result is read only when the marker names it as the
+        // surface source, so a flagged pass never opens it.
+        private sealed class ResultDto
+        {
+            [JsonPropertyName("surface")] public SurfaceDto? Surface { get; set; }
+        }
+
+        private sealed class SurfaceDto
+        {
+            [JsonPropertyName("format")] public string? Format { get; set; }
+            [JsonPropertyName("degree_u")] public int DegreeU { get; set; }
+            [JsonPropertyName("degree_v")] public int DegreeV { get; set; }
+            [JsonPropertyName("count_u")] public int CountU { get; set; }
+            [JsonPropertyName("count_v")] public int CountV { get; set; }
+            [JsonPropertyName("control_points")] public double[][][]? ControlPoints { get; set; }
+            [JsonPropertyName("weights")] public double[][]? Weights { get; set; }
+            [JsonPropertyName("knots_u")] public double[]? KnotsU { get; set; }
+            [JsonPropertyName("knots_v")] public double[]? KnotsV { get; set; }
         }
 
         private sealed class FieldDto
