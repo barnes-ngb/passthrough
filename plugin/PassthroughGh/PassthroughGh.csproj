@@ -29,6 +29,9 @@
   <ItemGroup>
     <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
   </ItemGroup>
+  <ItemGroup>
+  <EmbeddedResource Include="Resources\*.png" />
+</ItemGroup>
 
   <!-- Post-build rename: the build emits PassthroughGh.dll; Grasshopper loads .gha. -->
   <Target Name="BuildGha" AfterTargets="Build">
