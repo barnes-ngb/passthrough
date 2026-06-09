@@ -6,36 +6,54 @@ The full charter is in `AGENT.md`. The phased build and its gates are in `PLAN.m
 
 ## Status
 
-Phase 0 complete. The harness builds a synthetic wing-section surface from a directly-defined control net, tessellates it on a UV grid, and measures drift with a Hausdorff metric. The Phase 0 gate passes: a surface measured against itself reads zero drift. This is the foundation every later measurement is checked against.
+Phases 0 through 6 are built: the harness and drift metric, the classical reconstructor and the exchange, the loss budget, the synthetic-solver loop, the identity and validity gate, the reporting layer with its field file and static render, and the reverse-problem boundary ladder. Phase 7a adds the run contract: a run entry point that takes an externally produced tagged mesh, runs the loop on it, and writes a result, a field, and a status marker, with the whole handshake provable by hand with files. See `PLAN.md` for the phased build and its gates.
 
-Next: Phase 1, the classical reconstructor and the exchange round trip. See `PLAN.md`.
+Next: Phase 7b, the C# Grasshopper bench that exports the payload and imports the status marker this phase defines.
 
-## Setup (Windows, PowerShell)
+## Setup
 
 ```powershell
 # from the repo root
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+uv sync --group dev
 ```
 
-No Docker and no admin rights are required.
-
-## Run the Phase 0 gate
-
-```powershell
-python scripts\run_phase0.py
-```
-
-Expected: a built surface, an identity drift of zero, and `PHASE 0 GATE: PASS`.
+This installs the project and the dev group (pytest and matplotlib) into a managed
+environment in one step. No manual pip install, no Docker, no admin rights.
 
 ## Run the tests
 
 ```powershell
-python -m pytest
+uv run python -m pytest
 ```
 
-Twelve tests covering surface construction, tessellation, parameterization integrity, metric correctness, and the identity gate. Every test has a known-correct answer because the source surface is constructed, not loaded.
+Every test has a known-correct answer because the source surface is constructed, not
+loaded. They cover surface construction, tessellation, the drift metric, the exchange,
+the validity gate, the reporting layer, the reverse-problem ladder, and the Phase 7a
+run contract.
+
+## Run a phase gate
+
+```powershell
+uv run python scripts\run_phase0.py
+```
+
+Expected: a built surface, an identity drift of zero, and `PHASE 0 GATE: PASS`. The
+later phases have their own runners under `scripts/`.
+
+## Run the round trip by hand (Phase 7a)
+
+The run entry point takes an externally produced, tagged mesh, runs the loop on it,
+and writes a result, a deviation field, and a status marker. Prove it with files:
+
+```powershell
+uv run python scripts\run_roundtrip.py emit incoming.json
+uv run python scripts\run_roundtrip.py run incoming.json return
+```
+
+The first command writes a known-good payload from the synthetic wing (the stand-in
+for a Grasshopper export). The second runs the loop and writes `return\status.json`
+saying `done`. Feed it a malformed payload (`emit incoming.json --kind malformed`) and
+the status says `failed` with a reason, without crashing.
 
 ## Layout
 

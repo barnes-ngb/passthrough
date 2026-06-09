@@ -129,18 +129,41 @@ Category: 1 for the measurement (it reuses the category 1 meters and the categor
 
 ---
 
-## Phase 7 — C# Grasshopper plugin (earned stretch)
+## Phase 7a — The run contract and status handshake (Python)
 
-Goal: a native GH component that renders the deviation field, demonstrating C# on their stack. An optional stretch, lower priority than the Phase 6 experiment. Only after the core phases are green and time remains.
+Goal: the cheap half of the round-trip demo, the half provable end to end with files by hand before any C# or Rhino exists. Prove the contract where failure is cheap, so the expensive Grasshopper half is built against something solid. Built.
+
+The demo this serves is three manual steps, each separately triggered: (1) a Grasshopper export writes an incoming payload, (2) a trigger runs the loop on it and writes a status marker when done, (3) a Grasshopper import reads the result once it sees the marker. This phase builds step 2 and the contracts on both sides of it.
 
 Deliverables:
-- A GHA component that reads the same report file and renders the colored deviation mesh natively.
+- `run.py`: a reader that loads an incoming tagged mesh in the `encode.py` schema and validates it (tags present, faces reference existing vertices, adjacency matches the faces, node ids unique and covering the vertices); a malformed or untagged payload is a structured failure, not a crash. The loop run on the external input, reusing the solver step, the validity gate, and on a clean pass the reconstruction and the drift and curvature measurement, all from the existing modules unchanged. Writers for the result and the field file (`passthrough.deviation_field.v1`), and a status marker (`status.json`) written last and atomically.
+- The status marker carries `status` of `done` or `failed`. On `done`: the relative paths to the result and field files and the headline numbers (drift max, whether flagged, the signals). On `failed`: a human-readable reason. A flagged pass (collision, fold, identity-not-preserved) is a `done` with `flagged` true and the signals, not a `failed`. `failed` is for a malformed payload or an actual error.
+- `scripts/run_roundtrip.py`: takes an incoming payload path and a return folder, runs the steps, and prints what it wrote and the status. A helper emits a valid incoming payload from the synthetic wing, the stand-in for the eventual Grasshopper export and the fixture for the tests.
+- Packaging: a `[dependency-groups]` dev group in `pyproject.toml` carrying pytest and matplotlib, so setup is `uv sync --group dev` then `uv run python -m pytest`.
 
-Gate: the component loads in Grasshopper and renders the field matching the file-fed baseline. No new math lives in the component; it reads the same tested output. The Python engine remains the source of correctness.
+Gates (all in Python, all runnable on the machine):
+- Round trip on a valid payload yields a result, a field that round-trips against the report, and a `status.json` with `status: done` and a drift max matching the Phase 5 number.
+- External input matches internal: the loop on the external payload gives the same drift as the loop on the internally generated wing. The inversion changed the source of the mesh, not the math.
+- Flagged is done, not failed: a collision payload yields `status: done`, `flagged: true`, signals naming the pair, and no reconstruction, distinct from a failed status.
+- Malformed payload fails cleanly: a payload missing tags or with inconsistent faces yields `status: failed` with a reason and does not crash.
+- Atomic marker: the status writer writes to a temp path and renames, so a partial marker is never visible.
 
 Category: 1.
 
-Note: this is packaging, not the spike. It cannot fail in an interesting way, so it earns its place only after the core is proven and the Phase 6 experiment is done.
+---
+
+## Phase 7b — C# Grasshopper bench (earned stretch)
+
+Goal: a native GH component that writes the incoming payload and reads the deviation field and the status marker the Phase 7a contract defines, demonstrating C# on their stack. An optional stretch, lower priority than the Phase 6 experiment. Only after the core phases are green and time remains.
+
+Deliverables:
+- A GHA component that exports the payload Phase 7a reads, and reads the same field file and status marker to render the colored deviation mesh natively once the marker says `done`.
+
+Gate: the component loads in Grasshopper and renders the field matching the file-fed baseline, gated on the status marker. No new math lives in the component; it reads the same tested output. The Python engine remains the source of correctness.
+
+Category: 1.
+
+Note: this is packaging, not the spike. It cannot fail in an interesting way, so it earns its place only after the core is proven, the Phase 6 experiment is done, and the Phase 7a contract is solid.
 
 ---
 
