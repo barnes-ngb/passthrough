@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Grasshopper bench for passthrough (PLAN.md Phase 7b). One assembly, three
+    components, built against the Phase 7a file contract. This cannot be loaded in the
+    sandbox; it needs Rhino 8 on Windows. The gate is Nathan building and loading it.
+
+    Targets net7.0-windows, the framework Rhino 8 runs on. The Grasshopper NuGet
+    package brings RhinoCommon as a dependency. Its assets are compile-only:
+    ExcludeAssets="runtime" keeps Rhino's own DLLs out of the output, since Rhino
+    supplies them at load time. A post-build copy renames the .dll to a .gha, the
+    form Grasshopper loads from %APPDATA%\Grasshopper\Libraries.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net7.0-windows</TargetFramework>
+    <RootNamespace>PassthroughGh</RootNamespace>
+    <AssemblyName>PassthroughGh</AssemblyName>
+    <Version>0.1.0</Version>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <!-- RhinoCommon is a .NET Framework assembly seen from net7.0; silence the
+         cross-targeting restore warning. It loads correctly under Rhino 8. -->
+    <NoWarn>NU1701</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Post-build rename: the build emits PassthroughGh.dll; Grasshopper loads .gha. -->
+  <Target Name="BuildGha" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFiles="$(TargetDir)$(AssemblyName).gha"
+          OverwriteReadOnlyFiles="true" />
+    <Message Importance="high" Text="Wrote $(TargetDir)$(AssemblyName).gha" />
+  </Target>
+
+</Project>
