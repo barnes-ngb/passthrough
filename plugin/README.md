@@ -55,6 +55,29 @@ Unblock-File "$env:APPDATA\Grasshopper\Libraries\PassthroughGh.gha"
 Restart Rhino and Grasshopper. The three components appear on the **Passthrough** tab,
 **Bench** group.
 
+### Troubleshooting: missing component icons
+
+The components load their toolbar icons from PNGs embedded in the assembly, under the
+manifest name `PassthroughGh.Resources.<filename>` (the `EmbeddedResource` item in the
+csproj, matching the `RootNamespace`). `IconLoader.Load` returns null when the embedded
+resource is not found, so a missing icon falls back to Grasshopper's default rather than
+taking the component down. If the icons come up as the default checkerboard, the PNGs
+were not embedded. Confirm what actually shipped in the assembly by listing its manifest
+resource names. From a Grasshopper C# script component (which already has the assembly
+loaded once the plugin is installed):
+
+```csharp
+foreach (var name in typeof(PassthroughGh.ExportComponent).Assembly.GetManifestResourceNames())
+    Rhino.RhinoApp.WriteLine(name);
+```
+
+If the list shows no `PassthroughGh.Resources.passthrough_export_24.png` (and the import
+and trigger names), the PNGs were absent from the build's `Resources\` folder at compile
+time, so nothing was embedded. The csproj globs `Resources\*.png` relative to the project
+directory (`plugin\PassthroughGh\Resources\`); confirm the PNGs are present there before
+the build. The guard keeps the components working either way; this is how to find out
+whether to chase the embedding.
+
 ## Use: the three-button flow
 
 Place the three components on the canvas and wire them in order.
@@ -116,25 +139,47 @@ Outputs:
 
 - **Mesh (M):** the returned mesh, colored by deviation through a viridis ramp (the same
   color family as the static render). Gray on a flagged-but-done pass.
+- **Surface (Srf):** the reconstructed analytic surface, rebuilt from the result's
+  surface block, to set beside the original. Null on a flagged pass.
 - **Range (R):** the deviation range, for a stable color scale.
 - **CollisionPoints (C):** the vertices of each flagged collision pair, to mark on top.
 - **FoldedFaces (F):** the row indices of flagged folded faces.
-- **DriftMax (D):** the headline drift max from the marker. Absent on a flagged pass.
+- **DriftMax (D):** the headline positional drift max from the marker. Absent on a
+  flagged pass.
+- **CurvatureMax (K):** the headline curvature residual max from the marker. Absent on a
+  flagged pass.
 - **Status (S):** the status text. `not ready` until the marker appears, `pending` while
   the run is working, `failed: <reason>` on a failure, `done (clean)` or
   `done (flagged) [signals]` on success.
 
 Import reads `status.json` first and refuses to pull until it says `done`. It resolves
-the `field` path against the return folder itself, not the working directory. It does no
-computation: it reads what the run wrote and draws it.
+the `field` path against the return folder itself, not the working directory. When the
+marker names a surface source it reads the result's surface block and rebuilds the
+reconstructed `NurbsSurface` from its control net, weights, degrees, and knots
+(spec-07-surface). That rebuild is construction, not computation: the analytic surface
+was fit in Python and is reconstructed here verbatim. It does no other math: it reads
+what the run wrote and draws it.
+
+### The completed round trip
+
+The bench now shows both surfaces: the original surface the user exported (the **Mesh**
+the Export component returns, and the source surface itself on the canvas) and the
+reconstructed surface returned from the run (the **Surface** output here). Overlay the
+two and the trip is visible end to end on real surfaces you can probe: NURBS out, meshed,
+morphed, meshed back, NURBS back, with the drift and curvature measured between them. The
+**DriftMax** and **CurvatureMax** outputs carry exactly the two numbers the round trip is
+judged on, read from the marker, not recomputed. That is the whole reverse-problem
+boundary made live: not "here is a colored mesh" but "here is the original, here is what
+came back, and here is how far it drifted and where the curvature broke."
 
 ## Scope notes
 
 State these plainly; they are the boundaries the project holds, not omissions.
 
-- **Positional deviation only.** The field carries one scalar per vertex, which colors
-  cleanly. Curvature deviation is sampled on a different grid and stays in the static
-  render, not the live mesh coloring.
+- **Positional deviation colors the mesh.** The field carries one scalar per vertex,
+  which colors cleanly. Curvature deviation is sampled on a different grid, so it is not
+  used to color the mesh; its headline maximum is surfaced as the **CurvatureMax** number
+  and the full curvature field stays in the static render.
 - **The solver is synthetic.** The run inside the trigger is the synthetic morph from
   the earlier phases, not a real CFD solve. The bench demonstrates the round-trip
   architecture and the data continuity across the boundary, not a physical solution.
@@ -157,3 +202,6 @@ State these plainly; they are the boundaries the project holds, not omissions.
    freezing Grasshopper.
 5. Import and confirm the mesh colors by deviation and matches the static render, and
    that a flagged field shows gray with the collision pairs marked.
+6. On a clean pass, confirm the **Surface** output is a reconstructed `NurbsSurface` that
+   overlays the original exported surface, and that **DriftMax** and **CurvatureMax** show
+   the numbers from `status.json`. On a flagged pass, confirm the Surface output is null.
