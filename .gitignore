@@ -6,3 +6,11 @@ __pycache__/
 exchange/out/*.json
 exchange/in/*.json
 artifacts/
+
+
+
+# C# / Grasshopper plugin build outputs
+plugin/**/bin/
+plugin/**/obj/
+plugin/**/*.gha
+.vs/
