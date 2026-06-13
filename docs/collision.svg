@@ -1,0 +1,30 @@
+<svg width="100%" viewBox="0 0 880 430" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, -apple-system, sans-serif">
+<rect x="0.5" y="0.5" width="879" height="429" rx="14" fill="#ffffff" stroke="#E5E4DF"/>
+<text x="440" y="44" text-anchor="middle" font-size="22" font-weight="700" fill="#26261F">Carried topology defines which closeness is legal</text>
+<text x="440" y="70" text-anchor="middle" font-size="13.5" fill="#6E6B60">Every vertex keeps a stable ID and its list of neighbors. The check reads returned positions against that.</text>
+
+<!-- Legal panel -->
+<rect x="48" y="96" width="372" height="250" rx="12" fill="#E4EDE6" stroke="#1F6B50" stroke-width="1.25"/>
+<text x="72" y="128" font-size="13" font-weight="700" fill="#1F6B50" letter-spacing="1">LEGAL</text>
+<text x="72" y="152" font-size="16" font-weight="600" fill="#143F30">Neighbors, close together</text>
+<line x1="170" y1="232" x2="300" y2="232" stroke="#1F6B50" stroke-width="3"/>
+<circle cx="170" cy="232" r="16" fill="#1F6B50"/><text x="170" y="237" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">4</text>
+<circle cx="300" cy="232" r="16" fill="#1F6B50"/><text x="300" y="237" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">5</text>
+<text x="235" y="214" text-anchor="middle" font-size="12" fill="#1F6B50">shared edge</text>
+<text x="72" y="302" font-size="14" fill="#26261F">An edge says they belong near each other.</text>
+<text x="72" y="324" font-size="14" font-weight="600" fill="#1F6B50">Expected. Not a defect.</text>
+
+<!-- Collision panel -->
+<rect x="460" y="96" width="372" height="250" rx="12" fill="#F1E4DC" stroke="#9A3B1E" stroke-width="1.25"/>
+<text x="484" y="128" font-size="13" font-weight="700" fill="#9A3B1E" letter-spacing="1">COLLISION</text>
+<text x="484" y="152" font-size="16" font-weight="600" fill="#7A2E16">Non-neighbors, coincident</text>
+<text x="646" y="206" text-anchor="middle" font-size="12" fill="#9A3B1E">no edge between them</text>
+<text x="600" y="237" text-anchor="middle" font-size="13" font-weight="700" fill="#9A3B1E">0</text>
+<circle cx="640" cy="232" r="16" fill="#9A3B1E"/>
+<circle cx="652" cy="232" r="16" fill="#C2410C" fill-opacity="0.8"/>
+<text x="694" y="237" text-anchor="middle" font-size="13" font-weight="700" fill="#9A3B1E">11</text>
+<text x="484" y="302" font-size="14" fill="#26261F">The surface folded through itself.</text>
+<text x="484" y="324" font-size="14" font-weight="600" fill="#9A3B1E">Flagged as a self-intersection.</text>
+
+<text x="440" y="400" text-anchor="middle" font-size="13" fill="#6E6B60" font-style="italic">The check finds physically close pairs, then asks the topology if they are neighbors. The ones that are not are collisions.</text>
+</svg>
