@@ -1,0 +1,29 @@
+<svg width="100%" viewBox="0 0 880 410" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, -apple-system, sans-serif">
+<rect x="0.5" y="0.5" width="879" height="409" rx="14" fill="#ffffff" stroke="#E5E4DF"/>
+<text x="440" y="46" text-anchor="middle" font-size="22" font-weight="700" fill="#26261F">The reverse problem is two problems</text>
+<text x="440" y="72" text-anchor="middle" font-size="14" fill="#6E6B60">Strip the carried information and two different failures appear. Different knobs.</text>
+
+<!-- Boundary 1 -->
+<rect x="48" y="96" width="372" height="248" rx="12" fill="#E4EDE6" stroke="#1F6B50" stroke-width="1.25"/>
+<text x="72" y="130" font-size="13" font-weight="700" fill="#1F6B50" letter-spacing="1.5">BOUNDARY 1</text>
+<text x="72" y="160" font-size="22" font-weight="700" fill="#143F30">Parameterization recovery</text>
+<text x="72" y="192" font-size="15" fill="#26261F">Can you recover the parameterization</text>
+<text x="72" y="212" font-size="15" fill="#26261F">of the morphed geometry?</text>
+<text x="72" y="246" font-size="14" fill="#1F6B50" font-weight="600">Governs positional drift.</text>
+<text x="72" y="270" font-size="14" fill="#26261F">Carrying identity makes it well-posed.</text>
+<rect x="72" y="292" width="232" height="34" rx="17" fill="#1F6B50"/>
+<text x="188" y="314" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">passthrough closes this</text>
+
+<!-- Boundary 2 -->
+<rect x="460" y="96" width="372" height="248" rx="12" fill="#F1E4DC" stroke="#9A3B1E" stroke-width="1.25"/>
+<text x="484" y="130" font-size="13" font-weight="700" fill="#9A3B1E" letter-spacing="1.5">BOUNDARY 2</text>
+<text x="484" y="160" font-size="22" font-weight="700" fill="#7A2E16">Representation richness</text>
+<text x="484" y="192" font-size="15" fill="#26261F">Can your representation hold the</text>
+<text x="484" y="212" font-size="15" fill="#26261F">properties the solver feels?</text>
+<text x="484" y="246" font-size="14" fill="#9A3B1E" font-weight="600">Governs curvature fidelity.</text>
+<text x="484" y="270" font-size="14" fill="#26261F">The basis, not the carry. Independent of it.</text>
+<rect x="484" y="292" width="120" height="34" rx="17" fill="#ffffff" stroke="#9A3B1E" stroke-width="1.25"/>
+<text x="544" y="314" text-anchor="middle" font-size="13" font-weight="700" fill="#9A3B1E">open</text>
+
+<text x="440" y="384" text-anchor="middle" font-size="13.5" fill="#6E6B60" font-style="italic">Same reconstruction. Positional drift stayed near 0.003 while curvature deviation hit 2.2 at the leading edge.</text>
+</svg>
