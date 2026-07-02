@@ -4,5 +4,7 @@
   "signals": [],
   "result": "result.json",
   "field": "field.json",
-  "drift_max": 0.0028499785155785434
+  "surface": "result.json",
+  "drift_max": 0.01715860662797386,
+  "curvature_max": 0.11800333558917053
 }
