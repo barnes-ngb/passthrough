@@ -204,17 +204,41 @@ def collision_tolerance(mesh: Mesh, topology: Topology) -> float:
     Below the non-neighbor spacing (a clean return has no non-neighbor within it) and
     above the smallest edge (legal neighbor-closeness is present and ignored). This is
     the same regime the Phase 4 and Phase 5 runners use to gate the wing.
+
+    Both minima are derived from the mesh itself, so the tolerance scales with the
+    geometry. The smallest edge comes straight from the carried adjacency. The
+    smallest non-neighbor separation comes from each vertex's nearest non-neighbor
+    among its k nearest points; no absolute search radius is involved, so a mesh in
+    millimeters and the same mesh in meters gate identically.
     """
     v, ids, adj = mesh.vertices, topology.node_ids, topology.adjacency
+    row = {int(n): k for k, n in enumerate(ids)}
+    edge_min = min(
+        float(np.linalg.norm(v[row[a]] - v[row[b]]))
+        for a, nbrs in adj.items()
+        for b in nbrs
+        if a < b
+    )
     tree = cKDTree(v)
-    edge_min, nonneighbor_min = np.inf, np.inf
-    for i, j in tree.query_pairs(r=0.5):
-        a, b = int(ids[i]), int(ids[j])
-        d = float(np.linalg.norm(v[i] - v[j]))
-        if b in adj.get(a, ()):
-            edge_min = min(edge_min, d)
-        else:
-            nonneighbor_min = min(nonneighbor_min, d)
+    k = min(len(v), 9)  # self plus 8 nearest covers quad diagonals and the next ring
+    dists, idxs = tree.query(v, k=k)
+    nonneighbor_min = np.inf
+    for i in range(len(v)):
+        a = int(ids[i])
+        neighbors = adj.get(a, ())
+        for d, j in zip(dists[i][1:], idxs[i][1:]):
+            if int(ids[j]) not in neighbors:
+                nonneighbor_min = min(nonneighbor_min, float(d))
+                break  # distances are sorted: this is vertex i's nearest non-neighbor
+    if not np.isfinite(nonneighbor_min):
+        # Degenerate case (a mesh so small every near point is a neighbor): exact scan.
+        for i in range(len(v)):
+            a = int(ids[i])
+            neighbors = adj.get(a, ())
+            for j in range(i + 1, len(v)):
+                if int(ids[j]) not in neighbors:
+                    d = float(np.linalg.norm(v[i] - v[j]))
+                    nonneighbor_min = min(nonneighbor_min, d)
     return float(np.sqrt(edge_min * nonneighbor_min))
 
 
@@ -363,6 +387,12 @@ def run_roundtrip(
     return_dir = Path(return_dir)
     return_dir.mkdir(parents=True, exist_ok=True)
     status_path = return_dir / STATUS_NAME
+
+    # Announce the run before doing the work, so a reader polling the folder sees
+    # "running" instead of an absent marker. The import side renders any status that
+    # is neither failed nor done as pending, so this needs no reader-side change.
+    # Written atomically like every status: the marker is whole or absent, never partial.
+    write_status(status_path, {"status": "running"})
 
     try:
         mesh, descriptor, sent_topology = read_incoming_payload(payload_path)
