@@ -5,6 +5,7 @@ __pycache__/
 *.egg-info/
 exchange/out/*.json
 exchange/in/*.json
+exchange/return/*.json
 artifacts/
 
 # C# Grasshopper plugin build outputs (Phase 7b). None belong in the repo: the
