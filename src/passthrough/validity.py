@@ -178,7 +178,7 @@ def check_collision(
             "n_pairs_within_tolerance": len(pairs),
             "n_offending_pairs": len(offending),
             "min_nonneighbor_separation": (
-                min_sep if min_sep != float("inf") else float("nan")
+                min_sep if min_sep != float("inf") else None 
             ),
         },
     )
