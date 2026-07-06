@@ -329,7 +329,7 @@ def write_status(path: str | Path, status: dict[str, Any]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     with tmp.open("w", encoding="utf-8") as fh:
-        json.dump(status, fh, indent=2)
+        json.dump(status, fh, indent=2, allow_nan=False)
         fh.flush()
         os.fsync(fh.fileno())
     os.replace(tmp, path)

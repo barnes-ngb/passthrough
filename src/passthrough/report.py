@@ -318,9 +318,8 @@ def write_report(path: str | Path, report: LoopReport) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
-        json.dump(report_to_dict(report), fh, indent=2)
+        json.dump(report_to_dict(report), fh, indent=2, allow_nan=False)
     return path
-
 
 def read_report(path: str | Path) -> LoopReport:
     """Read a serialized report back."""
