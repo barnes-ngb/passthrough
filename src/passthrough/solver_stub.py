@@ -229,11 +229,75 @@ def fold_morph(mesh: Mesh, reach: float = 2.5) -> Mesh:
     return Mesh(vertices=moved, faces=base.faces.copy(), uv=base.uv.copy())
 
 
+FFD_STRENGTH = 0.04  # handle displacement as a fraction of the bounding-box diagonal
+
+
+def _bernstein(n: int, i: int, t: np.ndarray) -> np.ndarray:
+    """The i-th Bernstein polynomial of degree n, evaluated at t in [0, 1]."""
+    from math import comb
+
+    return comb(n, i) * (t**i) * ((1.0 - t) ** (n - i))
+
+
+def ffd_morph(mesh: Mesh, strength: float = FFD_STRENGTH) -> Mesh:
+    """Free-form deformation (Sederberg-Parry): a trivariate Bernstein lattice over
+    the mesh's bounding box, with a deterministic handle displacement standing in
+    for a simulation-driven shape change.
+
+    The lattice starts at the identity: control points sit on the regular grid of
+    the box, and by Bernstein partition-of-unity and linear precision the blend
+    reproduces every vertex exactly. The deformation is a cantilever-style spanwise
+    bend with washout twist: sections lift quadratically from root to tip and
+    rotate slightly, the shape a wing takes under aerodynamic load.
+
+    Two properties matter to the contract. The map acts on space, so identity,
+    topology, and uv are untouched by construction: this is the morph where
+    parameterization survives for free and all the interesting deviation is
+    representation (curvature), not correspondence. And the displacement scales
+    with the bounding-box diagonal, so the same relative deformation appears at
+    unit scale and at drawing scale alike.
+    """
+    v = mesh.vertices
+    lo, hi = v.min(axis=0), v.max(axis=0)
+    span = np.where(hi - lo > 1e-12, hi - lo, 1.0)
+    local = (v - lo) / span  # (s, t, u) in the unit cube
+    diag = float(np.linalg.norm(hi - lo))
+
+    deg_s, deg_t, deg_u = 3, 2, 1  # lattice of 4 x 3 x 2 control points
+    lattice = np.zeros((deg_s + 1, deg_t + 1, deg_u + 1, 3))
+    for i in range(deg_s + 1):
+        for j in range(deg_t + 1):
+            for k in range(deg_u + 1):
+                lattice[i, j, k] = lo + span * np.array(
+                    [i / deg_s, j / deg_t, k / deg_u]
+                )
+
+    d = strength * diag
+    for i in range(deg_s + 1):
+        ramp = (i / deg_s) ** 2  # cantilever-like: zero at the root, full at the tip
+        lattice[i, :, :, 2] += d * ramp  # spanwise bend, whole section lifts
+        lattice[i, 0, :, 1] += 0.3 * d * ramp  # washout twist: leading edge aside
+        lattice[i, deg_t, :, 1] -= 0.3 * d * ramp  # trailing edge opposite
+
+    basis_s = np.stack(
+        [_bernstein(deg_s, i, local[:, 0]) for i in range(deg_s + 1)], axis=1
+    )
+    basis_t = np.stack(
+        [_bernstein(deg_t, j, local[:, 1]) for j in range(deg_t + 1)], axis=1
+    )
+    basis_u = np.stack(
+        [_bernstein(deg_u, k, local[:, 2]) for k in range(deg_u + 1)], axis=1
+    )
+    deformed = np.einsum("vi,vj,vk,ijkc->vc", basis_s, basis_t, basis_u, lattice)
+    return Mesh(vertices=deformed, faces=mesh.faces.copy(), uv=mesh.uv.copy())
+
+
 # Registry so the entry point and the loop name modes the same way.
 MORPHS = {
     "clean": clean_morph,
     "collision": collision_morph,
     "fold": fold_morph,
+    "ffd": ffd_morph,
 }
 
 
@@ -311,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--index", type=int, default=0)
     parser.add_argument(
         "--mode",
-        choices=("identity", "synthetic", "clean", "collision", "fold"),
+        choices=("identity", "synthetic", "clean", "collision", "fold", "ffd"),
         default="identity",
         help=(
             "identity returns the mesh unchanged; synthetic applies the bump; "
