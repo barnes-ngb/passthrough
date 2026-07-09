@@ -84,3 +84,25 @@ def test_running_status_is_written_at_launch(tmp_path):
 
     assert observed == ["running"]
     assert summary["status"] == "done"
+
+
+def test_exchange_files_are_strict_json(tmp_path):
+    """The exchange contract must be strict JSON. Python's json module will happily
+    write NaN and Infinity literals, which are invalid JSON and poison any strict
+    parser on the other side of the contract: found live 2026-07-06 when a single
+    NaN in the collision check's diagnostics made the .NET reader reject the whole
+    result file, silently nulling the reconstructed surface on every clean pass."""
+    import json
+
+    from passthrough.run import emit_synthetic_payload, run_roundtrip
+
+    payload = tmp_path / "payload.json"
+    emit_synthetic_payload(payload)
+    return_dir = tmp_path / "return"
+    run_roundtrip(payload, return_dir, morph="clean")
+
+    for name in ("status.json", "result.json", "field.json"):
+        raw = (return_dir / name).read_text()
+        for token in ("NaN", "Infinity"):
+            assert token not in raw, f"{name} contains invalid JSON literal {token}"
+        json.dumps(json.loads(raw), allow_nan=False)  # round-trips strictly
