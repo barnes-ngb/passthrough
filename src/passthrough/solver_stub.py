@@ -291,9 +291,15 @@ def ffd_morph(mesh: Mesh, strength: float = FFD_STRENGTH) -> Mesh:
     deformed = np.einsum("vi,vj,vk,ijkc->vc", basis_s, basis_t, basis_u, lattice)
     return Mesh(vertices=deformed, faces=mesh.faces.copy(), uv=mesh.uv.copy())
 
+def identity_morph(mesh: Mesh) -> Mesh:
+    """The null solve: positions unchanged. The round trip then measures the
+    conversion tax alone: what tessellation plus the bounded refit cost before
+    any simulation touched anything. The calibration zero of the instrument."""
+    return Mesh(vertices=mesh.vertices.copy(), faces=mesh.faces.copy(), uv=mesh.uv.copy())
 
 # Registry so the entry point and the loop name modes the same way.
 MORPHS = {
+    "identity": identity_morph,
     "clean": clean_morph,
     "collision": collision_morph,
     "fold": fold_morph,
