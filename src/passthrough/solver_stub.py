@@ -381,7 +381,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--index", type=int, default=0)
     parser.add_argument(
         "--mode",
-        choices=("identity", "synthetic", "clean", "collision", "fold", "ffd"),
+        choices=("identity", "clean", "collision", "fold", "ffd"),
         default="identity",
         help=(
             "identity returns the mesh unchanged; synthetic applies the bump; "

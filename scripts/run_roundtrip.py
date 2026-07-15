@@ -107,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("return_dir", help="folder to write result, field, and status into")
     run.add_argument(
         "--morph",
-        choices=("clean", "collision", "fold", "ffd"),
+        choices=("identity", "clean", "collision", "fold", "ffd"),
         default="clean",
         help="the synthetic solver step, standing in for an external solve",
     )
